@@ -1,7 +1,7 @@
 import express from "express";
 import { Client } from "../models/Client.js";
 import { Session } from "../models/Session.js";
-//import authMiddleware from "..middleware/auth";
+import authMiddlewarezxc from "../middleware/auth.js";
 
 const router = express.Router();
 

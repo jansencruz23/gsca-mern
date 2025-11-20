@@ -34,7 +34,7 @@ router.post("/register", async (req, res) => {
 
         const token = jwt.sign(
             { id: counselor._id },
-            process.env.JWT_SECRET || "secretkey",
+            process.env.JWT_SECRET || "fallback_secret",
             {
                 expiresIn: "1d",
             }
