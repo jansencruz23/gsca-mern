@@ -35,6 +35,7 @@ export const authAPI = {
         lastName: string;
         email: string;
     }) => api.post('/auth/register', userData),
+    validateToken: () => api.get('/auth/me'),
 };
 
 
