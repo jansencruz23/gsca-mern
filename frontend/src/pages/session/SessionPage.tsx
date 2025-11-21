@@ -42,7 +42,6 @@ import {
     MediapipePoseService,
     type StressAnalysis,
 } from "@/services/mediapipePose";
-import { stat } from "fs";
 
 export const SessionPage: React.FC = () => {
     const [searchParams] = useSearchParams();

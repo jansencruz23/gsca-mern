@@ -9,7 +9,7 @@ const stressPointSchema = new mongoose.Schema({
 const sessionSchema = new mongoose.Schema({ 
     client: { type: mongoose.Schema.Types.ObjectId, ref: 'Client', required: true },
     counselor: { type: mongoose.Schema.Types.ObjectId, ref: 'Counselor', required: true },
-    description: { type: String, required: true },
+    description: { type: String},
     date: { type: Date, default: Date.now },
     stressPoints: [stressPointSchema],
     questions: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Question' }],

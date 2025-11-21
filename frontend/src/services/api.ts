@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const API_URL = process.env.REACT_APP_API_URL || "http://localhost:5000/api";
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
 // Setup axios instance with default headers
 const api = axios.create({
@@ -45,8 +45,6 @@ export const clientsAPI = {
     getById: (id: string) => api.get(`/clients/${id}`),
     recognize: (data: {
         faceDescriptor: number[];
-        snapshot: string;
-        name?: string;
     }) => api.post('/clients/recognize', data),
     create: (data: { name: string; faceDescriptor: number[]; snapshot: string; }) =>
         api.post('/clients', data),

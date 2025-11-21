@@ -6,7 +6,15 @@ export interface AuthRequest extends Request {
 }
 
 export default (req: AuthRequest, res: Response, next: NextFunction) => {
-    const token = req.header('x-auth-token');
+    const bearerHeader = req.header("authorization");
+    let token = null;
+
+    if (bearerHeader && bearerHeader.startsWith("Bearer ")) {
+        token = bearerHeader.replace("Bearer ", "");
+    } else {
+        token = req.header("x-auth-token");
+    }
+
     if (!token) {
         return res.status(401).json({ message: 'No token, authorization denied' });
     }

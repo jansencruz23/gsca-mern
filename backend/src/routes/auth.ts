@@ -61,8 +61,8 @@ router.post("/register", async (req, res) => {
 router.post("/login", async (req, res) => {
     try {
         const { username, password } = req.body;
-
         const counselor = await Counselor.findOne({ username });
+
         if (!counselor) {
             return res.status(400).json({ message: "Invalid credentials" });
         }
@@ -90,6 +90,8 @@ router.post("/login", async (req, res) => {
                 email: counselor.email,
             },
         });
+
+        console.log("Login successful for counselor:", counselor.username);
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: "Server error" });
