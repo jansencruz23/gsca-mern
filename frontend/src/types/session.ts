@@ -6,6 +6,14 @@ export interface StressPoint {
     timestamp: number;
     state: 'calm' | 'vigilance' | 'tense';
     question?: string;
+    confidence?: number;
+    details: {
+        posture: number;
+        movement: number;
+        fidgeting: number;
+        handFidgeting: number;
+        legBouncing: number;
+    }
 }
 
 export interface Session {

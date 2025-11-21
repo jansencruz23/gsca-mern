@@ -10,3 +10,7 @@ export interface QuestionForm {
     text: string;
     category: string;
 }
+
+export interface UsedQuestion extends Question {
+    timestamp: number;
+}
