@@ -3,5 +3,5 @@ export interface Client {
     name: string;
     createdAt: string;
     lastSessionDate: string;
-    sessons: string[];
+    sessions: string[];
 }
