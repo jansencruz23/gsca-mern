@@ -86,6 +86,10 @@ export const AnalyticsPage: React.FC = () => {
     };
 
     const formatTimestamp = (timestamp: number) => {
+        if (timestamp < 1000) {
+            timestamp = timestamp * 1000;
+        }
+
         const minutes = Math.floor(timestamp / 60000);
         const seconds = Math.floor((timestamp % 60000) / 1000);
         return `${minutes}:${seconds.toString().padStart(2, "0")}`;
@@ -103,6 +107,8 @@ export const AnalyticsPage: React.FC = () => {
 
     const processStressData = () => {
         if (!session || !session.stressPoints.length) return [];
+
+        console.log("Processing stress data:", session.stressPoints);
 
         return session.stressPoints.map((point) => ({
             time: formatTimestamp(point.timestamp),

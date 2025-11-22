@@ -94,6 +94,8 @@ router.get("/:id", authMiddleware, async (req: AuthRequest, res) => {
             return res.status(404).json({ message: "Session not found" });
         }
 
+        console.log("Fetched session:", session);
+
         res.json(session);
     } catch (error) {
         console.error(error);

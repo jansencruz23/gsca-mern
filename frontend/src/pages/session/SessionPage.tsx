@@ -355,6 +355,7 @@ export const SessionPage: React.FC = () => {
             question: question._id,
         };
 
+        console.log("Adding stress point for question:", newStressPoint);
         setStressPoints((prev) => [...prev, newStressPoint]);
     };
 

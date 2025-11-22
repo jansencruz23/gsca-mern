@@ -1,7 +1,7 @@
 import mongoose, { mongo } from "mongoose";
 
 const stressPointSchema = new mongoose.Schema({ 
-    timeStamp: { type: Number, required: true },
+    timestamp: { type: Number, required: true },
     state: { type: String, enum: ["calm", "vigilance", "tense"], required: true },
     question: { type: mongoose.Schema.Types.ObjectId, ref: 'Question' }
 });

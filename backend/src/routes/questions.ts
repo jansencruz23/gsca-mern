@@ -7,7 +7,7 @@ const router = express.Router();
 // Get all questions
 router.get("/", authMiddleware, async (req: AuthRequest, res) => {
     try {
-        const questions = await Question.find({ councelor: req.user.id });
+        const questions = await Question.find({ counselor: req.user.id });
         res.json(questions);
     } catch (error) {
         console.error(error);
