@@ -102,7 +102,7 @@ export const AnalyticsPage: React.FC = () => {
 
         const fetchSessionDetails = async () => {
             setIsLoadingDetails(true);
-            setError(null); 
+            setError(null);
 
             try {
                 const response = await sessionsAPI.getById(id);
@@ -112,32 +112,31 @@ export const AnalyticsPage: React.FC = () => {
 
                 if (
                     sessionData.suggestions &&
-                    typeof sessionData.suggestions === "object"
+                    typeof sessionData.suggestions === "object" && 
+                    sessionData.suggestions.summary
                 ) {
-                    // It's already an object, no need to parse. Just set it directly.
+                    // --- SCENARIO A: REVISITING A SESSION ---
+                    // If suggestions exist, use them directly.
                     setParsedSuggestions(sessionData.suggestions);
                 } else {
+                    // --- SCENARIO B: FRESH SESSION ---
                     // If suggestions are a string (old format) or don't exist, generate them
-                    if (!sessionData.suggestions) {
-                        setIsGeneratingInitialSuggestions(true);
-                        try {
-                            const insightsResponse =
-                                await sessionsAPI.generateInsights(
-                                    sessionData._id
-                                );
-                            const newSuggestions =
-                                insightsResponse.data.suggestions;
-                            // The response from our new backend endpoint is already an object
-                            setParsedSuggestions(newSuggestions);
-                        } catch (error) {
-                            console.error(
-                                "Error generating initial suggestions:",
-                                error
-                            );
-                            setError("Failed to generate suggestions. Please try again.");
-                        } finally {
-                            setIsGeneratingInitialSuggestions(false);
-                        }
+                    setIsGeneratingInitialSuggestions(true);
+                    try {
+                        console.log("Generating initial suggestions for session:", id);
+                        const insightsResponse =
+                            await sessionsAPI.generateInsights(sessionData._id);
+                        setParsedSuggestions(insightsResponse.data.suggestions);
+                    } catch (error) {
+                        console.error(
+                            "Error generating initial suggestions:",
+                            error
+                        );
+                        setError(
+                            "Failed to generate suggestions. Please try again."
+                        );
+                    } finally {
+                        setIsGeneratingInitialSuggestions(false); // This hides the skeleton
                     }
                 }
             } catch (error) {
@@ -474,7 +473,8 @@ export const AnalyticsPage: React.FC = () => {
                     )}
 
                     {/* Sensitive Topics */}
-                    {parsedSuggestions && parsedSuggestions.sensitiveTopics &&
+                    {parsedSuggestions &&
+                        parsedSuggestions.sensitiveTopics &&
                         Array.isArray(parsedSuggestions.sensitiveTopics) &&
                         parsedSuggestions.sensitiveTopics.length > 0 && (
                             <div>
@@ -492,7 +492,8 @@ export const AnalyticsPage: React.FC = () => {
                         )}
 
                     {/* Positive Patterns */}
-                    { parsedSuggestions && parsedSuggestions.positivePatterns &&
+                    {parsedSuggestions &&
+                        parsedSuggestions.positivePatterns &&
                         Array.isArray(parsedSuggestions.positivePatterns) &&
                         parsedSuggestions.positivePatterns.length > 0 && (
                             <div>
@@ -510,7 +511,8 @@ export const AnalyticsPage: React.FC = () => {
                         )}
 
                     {/* Recommendations */}
-                    {parsedSuggestions && parsedSuggestions.recommendations &&
+                    {parsedSuggestions &&
+                        parsedSuggestions.recommendations &&
                         parsedSuggestions.recommendations.length > 0 && (
                             <div>
                                 <h3 className="text-lg font-semibold mb-2">
@@ -527,7 +529,8 @@ export const AnalyticsPage: React.FC = () => {
                         )}
 
                     {/* Next Session Focus */}
-                    {parsedSuggestions && parsedSuggestions.nextSessionFocus &&
+                    {parsedSuggestions &&
+                        parsedSuggestions.nextSessionFocus &&
                         parsedSuggestions.nextSessionFocus.length > 0 && (
                             <div>
                                 <h3 className="text-lg font-semibold mb-2">
