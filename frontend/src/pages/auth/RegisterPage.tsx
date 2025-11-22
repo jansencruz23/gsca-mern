@@ -1,4 +1,4 @@
-import React, { use, useState } from "react";
+import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
@@ -13,7 +13,6 @@ import {
 } from "../../components/ui/card";
 import { useAuth } from "../../contexts/AuthContext";
 import { Alert, AlertDescription } from "../../components/ui/alert";
-import { set } from "react-hook-form";
 
 export const RegisterPage: React.FC = () => {
     const [formData, setFormData] = useState({
