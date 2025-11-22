@@ -55,6 +55,15 @@ export const Header: React.FC = () => {
                             <Button
                                 variant="ghost"
                                 size="sm"
+                                onClick={() => navigate("/clients")}
+                                className="flex items-center space-x-1"
+                            >
+                                <Users size={16} />
+                                <span>Clients</span>
+                            </Button>
+                            <Button
+                                variant="ghost"
+                                size="sm"
                                 onClick={() => navigate("/analytics")}
                                 className="flex items-center space-x-1"
                             >

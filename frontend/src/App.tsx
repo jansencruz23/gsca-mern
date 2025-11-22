@@ -13,6 +13,7 @@ import { SessionPage } from "./pages/session/SessionPage";
 import { Header } from "./components/layout/Header";
 import { AnalyticsPage } from "./pages/analytics/AnalyticsPage";
 import { QuestionsPage } from "./pages/questions/QuestionsPage";
+import { ClientsPage } from "./pages/clients/ClientsPage";
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({
     children,
@@ -56,6 +57,14 @@ const AppRoutes: React.FC = () => {
                             element={
                                 <ProtectedRoute>
                                     <SessionPage />
+                                </ProtectedRoute>
+                            }
+                        />
+                        <Route 
+                            path="/clients"
+                            element={
+                                <ProtectedRoute>
+                                    <ClientsPage />
                                 </ProtectedRoute>
                             }
                         />
