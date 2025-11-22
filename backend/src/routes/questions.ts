@@ -33,4 +33,42 @@ router.post("/", authMiddleware, async (req: AuthRequest, res) => {
     }
 });
 
+// Update a question
+router.put('/:id', authMiddleware, async (req: AuthRequest, res) => {
+    try {
+        const { text, category } = req.body;
+        const question = await Question.findOne( {_id: req.params.id, counselor: req.user.id });
+
+        if (!question) {
+            return res.status(404).json({ message: "'Question not found or you do not have permission to edit it" });
+        }
+
+        question.text = text;
+        question.category = category;
+        await question.save();
+
+        res.json(question);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: "Server error" });
+    }
+});
+
+// Delete a question
+router.delete('/:id', authMiddleware, async (req: AuthRequest, res) => {
+    try {
+        const question = await Question.findOne( {_id: req.params.id, counselor: req.user.id });
+
+        if (!question) {
+            return res.status(404).json({ message: "Question not found or you do not have permission to delete it" });
+        }
+
+        await Question.findByIdAndDelete(req.params.id);
+        res.json({ message: "Question deleted successfully" });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: "Server error" });
+    }
+});
+
 export default router;

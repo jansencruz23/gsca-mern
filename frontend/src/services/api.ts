@@ -68,6 +68,10 @@ export const questionsAPI = {
     getAll: () => api.get('/questions'),
     create: (questionData: { text: string; category: string }) =>
         api.post('/questions', questionData),
+    update: (id: string, questionData: { text: string; category: string}) => 
+        api.put(`/questions/${id}`, questionData),
+    delete: (id: string) =>
+        api.delete(`/questions/${id}`),
 };
 
 // Analytics API
