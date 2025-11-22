@@ -19,7 +19,11 @@ import {
     Clock,
     BarChart3,
     Loader2,
+    Edit,
 } from "lucide-react";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 
 export const ClientsPage: React.FC = () => {
     const navigate = useNavigate();
@@ -32,6 +36,11 @@ export const ClientsPage: React.FC = () => {
         Session[]
     >([]);
     const [isLoadingSessions, setIsLoadingSessions] = useState(false);
+
+    const [showEditDialog, setShowEditDialog] = useState(false);
+    const [editingClient, setEditingClient] = useState<Client | null>(null);
+    const [editClientName, setEditClientName] = useState("");
+    const [isSaving, setIsSaving] = useState(false);
 
     useEffect(() => {
         const fetchClients = async () => {
@@ -57,7 +66,9 @@ export const ClientsPage: React.FC = () => {
         const fetchClientSessions = async () => {
             setIsLoadingSessions(true);
             try {
-                const response = await sessionsAPI.getByClientId(selectedClient._id);
+                const response = await sessionsAPI.getByClientId(
+                    selectedClient._id
+                );
                 setSelectedClientSessions(response.data);
             } catch (error) {
                 console.error("Error fetching client sessions:", error);
@@ -75,6 +86,51 @@ export const ClientsPage: React.FC = () => {
 
     const handleBackToList = () => {
         setSelectedClient(null);
+    };
+
+    // --- Edit Client Handlers ---
+
+    const handleOpenEditDialog = (client: Client) => {
+        setEditingClient(client);
+        setEditClientName(client.name);
+        setShowEditDialog(true);
+    };
+
+    const handleCloseEditDialog = () => {
+        setShowEditDialog(false);
+        clientsAPI;
+        setEditingClient(null);
+        setEditClientName("");
+    };
+
+    const handleSaveEdit = async () => {
+        if (!editingClient || !editClientName.trim()) return;
+
+        setIsSaving(true);
+        try {
+            await clientsAPI.update({
+                id: editingClient._id,
+                name: editClientName.trim(),
+            });
+
+            setAllClients((prevClients) =>
+                prevClients.map((c) =>
+                    c._id === editingClient._id
+                        ? { ...c, name: editClientName }
+                        : c
+                )
+            );
+
+            if (selectedClient && selectedClient._id === editingClient._id) {
+                setSelectedClient({ ...selectedClient, name: editClientName });
+            }
+
+            handleCloseEditDialog();
+        } catch (error) {
+            console.error("Error updating client:", error);
+        } finally {
+            setIsSaving(false);
+        }
     };
 
     const formatDate = (dateString: string) => {
@@ -136,10 +192,12 @@ export const ClientsPage: React.FC = () => {
                         {allClients.map((client) => (
                             <div
                                 key={client._id}
-                                className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 cursor-pointer transition-colors"
-                                onClick={() => handleSelectClient(client)}
+                                className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 transition-colors"
                             >
-                                <div className="flex items-center space-x-3">
+                                <div
+                                    className="flex items-center space-x-3 flex-grow cursor-pointer"
+                                    onClick={() => handleSelectClient(client)}
+                                >
                                     <User className="h-8 w-8 text-gray-400" />
                                     <div>
                                         <p className="font-medium">
@@ -151,10 +209,20 @@ export const ClientsPage: React.FC = () => {
                                         </p>
                                     </div>
                                 </div>
-                                <div className="text-right">
+                                <div className="flex items-center space-x-2">
                                     <Badge variant="outline">
                                         {client.sessions.length} sessions
                                     </Badge>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={(e) => {
+                                            e.stopPropagation(); // Prevents the row click event
+                                            handleOpenEditDialog(client);
+                                        }}
+                                    >
+                                        <Edit className="h-4 w-4" />
+                                    </Button>
                                 </div>
                             </div>
                         ))}
@@ -263,6 +331,38 @@ export const ClientsPage: React.FC = () => {
     return (
         <div className="container mx-auto px-4 py-8">
             {selectedClient ? renderClientDetail() : renderClientList()}
+
+            {/* Edit Client Dialog */}
+            <Dialog open={showEditDialog} onOpenChange={handleCloseEditDialog}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Edit Client Name</DialogTitle>
+                        <DialogDescription>
+                            Make changes to the client's name here. Click save when you're done.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="name">Name</Label>
+                            <Input
+                                id="name"
+                                value={editClientName}
+                                onChange={(e) => setEditClientName(e.target.value)}
+                                placeholder="Enter client name"
+                            />
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={handleCloseEditDialog}>
+                            Cancel
+                        </Button>
+                        <Button onClick={handleSaveEdit} disabled={!editClientName.trim() || isSaving}>
+                            {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                            Save Changes
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 };

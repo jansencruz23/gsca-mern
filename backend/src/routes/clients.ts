@@ -124,6 +124,26 @@ router.post("/", authMiddleware, async (req, res) => {
     }
 });
 
+// Update client details
+router.put("/:id", authMiddleware, async (req, res) => {
+    try {
+        const { name } = req.body;
+
+        console.log("Updating client:", req.params.id, "with name:", name);
+        const client = await Client.findById(req.params.id);
+        if (!client) {
+            return res.status(404).json({ message: "Client not found" });
+        }
+
+        client.name = name || client.name;
+        await client.save();
+        res.json(client);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: "Server error" });
+    }
+});
+
 function calculateEuclideanDistance(descriptor1: any, descriptor2: any) {
     if (descriptor1.length !== descriptor2.length) {
         return Infinity;

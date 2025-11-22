@@ -48,6 +48,8 @@ export const clientsAPI = {
     }) => api.post('/clients/recognize', data),
     create: (data: { name: string; faceDescriptor: number[]; snapshot: string; }) =>
         api.post('/clients', data),
+    update: (data: { id: string; name: string }) => 
+        api.put(`/clients/${data.id}`, { name: data.name }),
 }
 
 // Sessions API
