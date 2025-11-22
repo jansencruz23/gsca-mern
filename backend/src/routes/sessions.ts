@@ -3,6 +3,7 @@ import type { AuthRequest } from "../middleware/auth.ts";
 import { Session } from "../models/Session.ts";
 import { Client } from "../models/Client.ts";
 import authMiddleware from "../middleware/auth.ts";
+import { generateSessionInsights } from "../services/geminiService.ts";
 
 const router = express.Router();
 
@@ -96,6 +97,29 @@ router.get("/:id", authMiddleware, async (req: AuthRequest, res) => {
         res.json(session);
     } catch (error) {
         console.error(error);
+        res.status(500).json({ message: "Server error" });
+    }
+});
+
+router.post('/:id/generate-insights', authMiddleware, async (req: AuthRequest, res) => {
+    try {
+        const { id } = req.params;
+
+        const session = await Session.findById(id)
+            .populate("client")
+            .populate("questions");
+
+        if (!session) {
+            return res.status(404).json({ message: "Session not found" });
+        }
+
+        const suggestions = await generateSessionInsights(session);
+        session.suggestions = suggestions;
+        await session.save();
+
+        res.json({ suggestions });
+    } catch (error) {
+        console.error("Error generating insights:", error);
         res.status(500).json({ message: "Server error" });
     }
 });
