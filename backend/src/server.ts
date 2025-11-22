@@ -21,7 +21,7 @@ const app = express();
 // Middleware
 app.use(
     cors({
-        origin: allowedOrigins,
+        origin: "*",
         credentials: true,
     })
 );
