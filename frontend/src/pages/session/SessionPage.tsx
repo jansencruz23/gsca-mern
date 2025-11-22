@@ -37,6 +37,8 @@ import {
     AlertCircle,
     MessageSquare,
     Loader2,
+    X,
+    Search,
 } from "lucide-react";
 import {
     MediapipePoseService,
@@ -53,7 +55,10 @@ export const SessionPage: React.FC = () => {
     const [isSessionPaused, setIsSessionPaused] = useState(false);
     const [session, setSession] = useState<Session | null>(null);
     const [client, setClient] = useState<Client | null>(null);
+    const [allClients, setAllClients] = useState<Client[]>([]);
     const [isRecognizing, setIsRecognizing] = useState(false);
+    const [clientSearchTerm, setClientSearchTerm] = useState("");
+    const [showClientSearchResults, setShowClientSearchResults] = useState(false);
     const [showNewClientDialog, setShowNewClientDialog] = useState(false);
     const [showPermissionDialog, setShowPermissionDialog] = useState(false);
     const [showConfirmationDialog, setShowConfirmationDialog] = useState(false);
@@ -83,16 +88,20 @@ export const SessionPage: React.FC = () => {
     const lastStressUpdateRef = useRef<number>(0);
 
     useEffect(() => {
-        const fetchQuestions = async () => {
+        const fetchData = async () => {
             try {
-                const response = await questionsAPI.getAll();
-                setQuestions(response.data);
+                const [questionRes, clientRes] = await Promise.all([
+                    questionsAPI.getAll(),
+                    clientsAPI.getAll(),
+                ]);
+                setQuestions(questionRes.data);
+                setAllClients(clientRes.data);
             } catch (error) {
                 console.error("Error fetching questions:", error);
             }
         };
 
-        fetchQuestions();
+        fetchData();
         loadFaceApiModels();
 
         // If clientId is provided, fetch client details
@@ -105,10 +114,12 @@ export const SessionPage: React.FC = () => {
                     console.error("Error fetching client:", error);
                 }
             };
-
             fetchClient();
         }
+    }, [clientId]);
 
+    useEffect(() => {
+        startCamera();
         return () => {
             if (mediapipeServiceRef.current) {
                 mediapipeServiceRef.current.stop();
@@ -117,7 +128,7 @@ export const SessionPage: React.FC = () => {
                 streamRef.current.getTracks().forEach((track) => track.stop());
             }
         };
-    }, [clientId]);
+    }, []);
 
     const loadFaceApiModels = async () => {
         setRecognitionStatus("Loading face recognition models...");
@@ -212,13 +223,8 @@ export const SessionPage: React.FC = () => {
     };
 
     const recognizeClient = async () => {
-        if (!modelsLoaded) {
-            setRecognitionStatus("Face recognition models not loaded yet.");
-            return;
-        }
-
-        if (!videoRef.current || !isVideoReady) {
-            setRecognitionStatus("Video not ready for recognition.");
+        if (!modelsLoaded || !videoRef.current || !isVideoReady) {
+            setRecognitionStatus("Video or models not ready for recognition.");
             return;
         }
 
@@ -274,10 +280,8 @@ export const SessionPage: React.FC = () => {
     };
 
     const saveNewClient = async () => {
-        if (!newClientName.trim() || !faceSnapshot) {
-            return;
-        }
-
+        if (!newClientName.trim() || !faceSnapshot || !videoRef.current) return;
+        
         try {
             const { descriptor } = await detectFace(videoRef.current!);
             const response = await clientsAPI.create({
@@ -316,10 +320,6 @@ export const SessionPage: React.FC = () => {
             lastStressUpdateRef.current = 0;
             setStressPoints([]);
             setUsedQuestions([]);
-
-            if (!isVideoReady) {
-                await startCamera();
-            }
         } catch (error) {
             console.error("Error starting session:", error);
         }
@@ -367,7 +367,6 @@ export const SessionPage: React.FC = () => {
             question: question._id,
         };
 
-        console.log("Adding stress point for question:", newStressPoint);
         setStressPoints((prev) => [...prev, newStressPoint]);
     };
 
@@ -384,44 +383,47 @@ export const SessionPage: React.FC = () => {
         }
     };
 
+    const filteredClients = allClients.filter((c) => 
+        c.name.toLowerCase().includes(clientSearchTerm.toLowerCase())
+    );
+
+    const handleClientSelect = (selectedClient: Client) => {
+        setClient(selectedClient);
+        setClientSearchTerm("");
+        setShowClientSearchResults(false);
+    };
+
+    const handleClientDeselect = () => {
+        setClient(null);
+    };
+
     return (
         <div className="container mx-auto px-4 py-8">
             <h1 className="text-3xl font-bold mb-8">Counseling Session</h1>
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Video Feed */}
-                <div className="lg:col-span-2">
+                <div className="lg:col-span-2 space-y-6">
                     <Card>
                         <CardHeader>
                             <CardTitle className="flex items-center justify-between">
                                 <span>Video Feed</span>
-                                <div className="flex items-center gap-2">
-                                    {client && (
-                                        <Badge
-                                            variant="outline"
-                                            className="flex items-center gap-1"
-                                        >
-                                            <User size={14} />
-                                            {client.name}
-                                        </Badge>
-                                    )}
-                                    {isSessionStarted && (
-                                        <Badge
-                                            className={`flex items-center gap-1 ${getStressStateColor(
-                                                currentStressState
-                                            )} text-white`}
-                                        >
-                                            {currentStressState
-                                                .charAt(0)
-                                                .toUpperCase() +
-                                                currentStressState.slice(1)}
-                                        </Badge>
-                                    )}
-                                </div>
+                                {isSessionStarted && (
+                                    <Badge
+                                        className={`flex items-center gap-1 ${getStressStateColor(
+                                            currentStressState
+                                        )} text-white`}
+                                    >
+                                        {currentStressState
+                                            .charAt(0)
+                                            .toUpperCase() +
+                                            currentStressState.slice(1)}
+                                    </Badge>
+                                )}
                             </CardTitle>
                             <CardDescription>
                                 {isSessionStarted
                                     ? "Session in progress"
-                                    : "Start a session to begin stress detection"}
+                                    : "Camera is ready. Select a client (optional) and start the session."}
                             </CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-4">
@@ -429,7 +431,7 @@ export const SessionPage: React.FC = () => {
                                 <video
                                     ref={videoRef}
                                     className="absolute inset-0 w-full h-full object-cover"
-                                    style={{ display: "none" }} // Hide video, we'll show the canvas with pose overlay
+                                    style={{ display: "none" }}
                                 />
                                 <canvas
                                     ref={canvasRef}
@@ -439,9 +441,7 @@ export const SessionPage: React.FC = () => {
                                 />
                                 {!isVideoReady && (
                                     <div className="absolute inset-0 flex items-center justify-center">
-                                        <p className="text-white">
-                                            Camera feed will appear here
-                                        </p>
+                                        <Loader2 className="h-8 w-8 text-white animate-spin" />
                                     </div>
                                 )}
                                 {isSessionStarted && (
@@ -460,71 +460,31 @@ export const SessionPage: React.FC = () => {
                                     </div>
                                 )}
                             </div>
-                            {/* Recognition Status */}
+                            {/* Status Alerts */}
                             {recognitionStatus && (
                                 <Alert>
                                     <AlertCircle className="h-4 w-4" />
-                                    <AlertDescription>
-                                        {recognitionStatus}
-                                    </AlertDescription>
+                                    <AlertDescription>{recognitionStatus}</AlertDescription>
                                 </Alert>
                             )}
-                            {/* Pose Loading Status */}
                             {poseLoadingStatus && (
                                 <Alert>
                                     <Loader2 className="h-4 w-4 animate-spin" />
-                                    <AlertDescription>
-                                        {poseLoadingStatus}
-                                    </AlertDescription>
+                                    <AlertDescription>{poseLoadingStatus}</AlertDescription>
                                 </Alert>
                             )}
                             <div className="flex justify-center space-x-2">
                                 {!isSessionStarted ? (
-                                    <>
-                                        <Button
-                                            onClick={startCamera}
-                                            variant="outline"
-                                            disabled={isVideoReady}
-                                        >
-                                            <Camera className="mr-2 h-4 w-4" />
-                                            {isVideoReady
-                                                ? "Camera Ready"
-                                                : "Start Camera"}
-                                        </Button>
-                                        <Button
-                                            onClick={recognizeClient}
-                                            variant="outline"
-                                            disabled={
-                                                !isVideoReady ||
-                                                isRecognizing ||
-                                                !modelsLoaded
-                                            }
-                                        >
-                                            {isRecognizing ? (
-                                                <>
-                                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                                    Recognizing...
-                                                </>
-                                            ) : (
-                                                "Recognize Client (Optional)"
-                                            )}
-                                        </Button>
-                                        <Button
-                                            onClick={startSession}
-                                            disabled={
-                                                !isVideoReady || !mediapipeReady
-                                            }
-                                        >
-                                            <Play className="mr-2 h-4 w-4" />
-                                            Start Session
-                                        </Button>
-                                    </>
+                                    <Button
+                                        onClick={startSession}
+                                        disabled={!isVideoReady || !mediapipeReady}
+                                    >
+                                        <Play className="mr-2 h-4 w-4" />
+                                        Start Session
+                                    </Button>
                                 ) : (
                                     <>
-                                        <Button
-                                            onClick={pauseSession}
-                                            variant="outline"
-                                        >
+                                        <Button onClick={pauseSession} variant="outline">
                                             {isSessionPaused ? (
                                                 <>
                                                     <Play className="mr-2 h-4 w-4" />
@@ -537,9 +497,7 @@ export const SessionPage: React.FC = () => {
                                                 </>
                                             )}
                                         </Button>
-                                        <Button onClick={endSession}>
-                                            End Session
-                                        </Button>
+                                        <Button onClick={endSession}>End Session</Button>
                                     </>
                                 )}
                             </div>
@@ -548,53 +506,31 @@ export const SessionPage: React.FC = () => {
 
                     {/* Session Details */}
                     {isSessionStarted && (
-                        <Card className="mt-6">
+                        <Card>
                             <CardHeader>
                                 <CardTitle>Session Details</CardTitle>
                             </CardHeader>
                             <CardContent className="space-y-4">
                                 <div className="space-y-2">
-                                    <Label htmlFor="description">
-                                        Session Description
-                                    </Label>
+                                    <Label htmlFor="description">Session Description</Label>
                                     <Input
                                         id="description"
                                         value={sessionDescription}
-                                        onChange={(e) =>
-                                            setSessionDescription(
-                                                e.target.value
-                                            )
-                                        }
+                                        onChange={(e) => setSessionDescription(e.target.value)}
                                         placeholder="Enter a description for this session"
                                     />
                                 </div>
-
                                 {client && (
                                     <div className="space-y-2">
                                         <Label>Selected Client</Label>
-                                        <div className="p-3 bg-gray-50 rounded-md">
-                                            <p className="font-medium">
-                                                {client.name}
-                                            </p>
-                                            <p className="text-sm text-gray-500">
-                                                {client.sessions.length}{" "}
-                                                previous sessions
-                                            </p>
-                                        </div>
-                                    </div>
-                                )}
-
-                                {!client && (
-                                    <div className="space-y-2">
-                                        <Label>Client Status</Label>
-                                        <div className="p-3 bg-gray-50 rounded-md">
-                                            <p className="font-medium">
-                                                No client selected
-                                            </p>
-                                            <p className="text-sm text-gray-500">
-                                                You can start a session without
-                                                selecting a client
-                                            </p>
+                                        <div className="p-3 bg-gray-50 rounded-md flex justify-between items-center">
+                                            <div>
+                                                <p className="font-medium">{client.name}</p>
+                                                <p className="text-sm text-gray-500">{client.sessions.length} previous sessions</p>
+                                            </div>
+                                            <Button size="sm" variant="ghost" onClick={handleClientDeselect}>
+                                                <X className="h-4 w-4" />
+                                            </Button>
                                         </div>
                                     </div>
                                 )}
@@ -603,36 +539,117 @@ export const SessionPage: React.FC = () => {
                     )}
                 </div>
 
-                {/* Questions Panel */}
-                <div>
+                {/* Sidebar */}
+                <div className="space-y-6">
+                    {/* Client Selection Card */}
+                    {!isSessionStarted && (
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Client Selection</CardTitle>
+                                <CardDescription>
+                                    Associate this session with a client (optional).
+                                </CardDescription>
+                            </CardHeader>
+                            <CardContent className="space-y-4">
+                                {!client ? (
+                                    <>
+                                        {/* Search Input */}
+                                        <div className="relative">
+                                            <Label htmlFor="client-search">Search for a client</Label>
+                                            <div className="relative">
+                                                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                                                <Input
+                                                    id="client-search"
+                                                    placeholder="Type client name..."
+                                                    value={clientSearchTerm}
+                                                    onChange={(e) => {
+                                                        setClientSearchTerm(e.target.value);
+                                                        setShowClientSearchResults(true);
+                                                    }}
+                                                    onFocus={() => setShowClientSearchResults(true)}
+                                                    className="pl-10"
+                                                />
+                                            </div>
+                                            {/* Search Results Dropdown */}
+                                            {showClientSearchResults && clientSearchTerm && (
+                                                <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-y-auto">
+                                                    {filteredClients.length > 0 ? (
+                                                        filteredClients.map((c) => (
+                                                            <div
+                                                                key={c._id}
+                                                                className="px-4 py-2 cursor-pointer hover:bg-gray-100 flex items-center justify-between"
+                                                                onClick={() => handleClientSelect(c)}
+                                                            >
+                                                                <span>{c.name}</span>
+                                                                <Badge variant="outline">{c.sessions.length} sessions</Badge>
+                                                            </div>
+                                                        ))
+                                                    ) : (
+                                                        <div className="px-4 py-2 text-gray-500">No clients found.</div>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        <div className="flex items-center justify-center">
+                                            <span className="text-gray-400">OR</span>
+                                        </div>
+
+                                        {/* Face Recognition Button */}
+                                        <Button
+                                            onClick={recognizeClient}
+                                            variant="outline"
+                                            className="w-full"
+                                            disabled={isRecognizing || !modelsLoaded}
+                                        >
+                                            {isRecognizing ? (
+                                                <>
+                                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                                    Recognizing...
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <Camera className="mr-2 h-4 w-4" />
+                                                    Recognize Client (Optional)
+                                                </>
+                                            )}
+                                        </Button>
+                                    </>
+                                ) : (
+                                    <div className="p-3 bg-gray-50 rounded-md flex justify-between items-center">
+                                        <div>
+                                            <p className="font-medium">{client.name}</p>
+                                            <p className="text-sm text-gray-500">{client.sessions.length} previous sessions</p>
+                                        </div>
+                                        <Button size="sm" variant="ghost" onClick={handleClientDeselect}>
+                                            <X className="h-4 w-4" />
+                                        </Button>
+                                    </div>
+                                )}
+                            </CardContent>
+                        </Card>
+                    )}
+
+                    {/* Questions Panel */}
                     <Card>
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2">
                                 <MessageSquare className="h-5 w-5" />
                                 Question Bank
                             </CardTitle>
-                            <CardDescription>
-                                Click questions to use them during the session
-                            </CardDescription>
+                            <CardDescription>Click questions to use them during the session</CardDescription>
                         </CardHeader>
                         <CardContent>
                             {isSessionStarted ? (
-                                <div className="space-y-2">
+                                <div className="space-y-2 max-h-96 overflow-y-auto">
                                     {questions.map((question) => (
                                         <div
                                             key={question._id}
                                             className="p-3 border rounded-md cursor-pointer hover:bg-gray-50"
-                                            onClick={() =>
-                                                useQuestion(question)
-                                            }
+                                            onClick={() => useQuestion(question)}
                                         >
-                                            <p className="text-sm font-medium">
-                                                {question.text}
-                                            </p>
-                                            <Badge
-                                                variant="outline"
-                                                className="mt-1 text-xs"
-                                            >
+                                            <p className="text-sm font-medium">{question.text}</p>
+                                            <Badge variant="outline" className="mt-1 text-xs">
                                                 {question.category}
                                             </Badge>
                                         </div>
@@ -649,27 +666,17 @@ export const SessionPage: React.FC = () => {
 
                     {/* Used Questions */}
                     {isSessionStarted && usedQuestions.length > 0 && (
-                        <Card className="mt-6">
+                        <Card>
                             <CardHeader>
                                 <CardTitle>Used Questions</CardTitle>
                             </CardHeader>
                             <CardContent>
-                                <div className="space-y-2">
+                                <div className="space-y-2 max-h-64 overflow-y-auto">
                                     {usedQuestions.map((question, index) => (
-                                        <div
-                                            key={index}
-                                            className="p-3 bg-gray-50 rounded-md"
-                                        >
-                                            <p className="text-sm font-medium">
-                                                {question.text}
-                                            </p>
+                                        <div key={index} className="p-3 bg-gray-50 rounded-md">
+                                            <p className="text-sm font-medium">{question.text}</p>
                                             <p className="text-xs text-gray-500">
-                                                Asked at{" "}
-                                                {Math.floor(
-                                                    (question.timestamp || 0) /
-                                                        1000
-                                                )}
-                                                s
+                                                Asked at {Math.floor((question.timestamp || 0) / 1000)}s
                                             </p>
                                         </div>
                                     ))}
@@ -680,75 +687,48 @@ export const SessionPage: React.FC = () => {
                 </div>
             </div>
 
-            {/* Face Recognition Permission Dialog */}
-            <Dialog
-                open={showPermissionDialog}
-                onOpenChange={setShowPermissionDialog}
-            >
+            {/* Dialogs */}
+            <Dialog open={showPermissionDialog} onOpenChange={setShowPermissionDialog}>
                 <DialogContent>
                     <DialogHeader>
                         <DialogTitle>Face Recognition</DialogTitle>
                         <DialogDescription>
-                            We've detected a face that's not in our system.
-                            Would you like to create a profile for this person?
+                            We've detected a face that's not in our system. Would you like to create a profile for this person?
                         </DialogDescription>
                     </DialogHeader>
                     <DialogFooter>
-                        <Button
-                            variant="outline"
-                            onClick={() => setShowPermissionDialog(false)}
-                        >
+                        <Button variant="outline" onClick={() => setShowPermissionDialog(false)}>
                             No, thanks
                         </Button>
-                        <Button
-                            onClick={() => {
-                                setShowPermissionDialog(false);
-                                setShowNewClientDialog(true);
-                            }}
-                        >
+                        <Button onClick={() => { setShowPermissionDialog(false); setShowNewClientDialog(true); }}>
                             Yes, create profile
                         </Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
 
-            {/* Client Recognition Confirmation Dialog */}
-            <Dialog
-                open={showConfirmationDialog}
-                onOpenChange={setShowConfirmationDialog}
-            >
+            <Dialog open={showConfirmationDialog} onOpenChange={setShowConfirmationDialog}>
                 <DialogContent>
                     <DialogHeader>
                         <DialogTitle>Client Recognition</DialogTitle>
                         <DialogDescription>
-                            We've recognized this person as{" "}
-                            {recognizedClient?.name} with{" "}
-                            {(recognitionConfidence * 100).toFixed(1)}%
-                            confidence. Is this correct?
+                            We've recognized this person as {recognizedClient?.name} with {(recognitionConfidence * 100).toFixed(1)}% confidence. Is this correct?
                         </DialogDescription>
                     </DialogHeader>
                     <DialogFooter>
                         <Button variant="outline" onClick={retryRecognition}>
                             Retry
                         </Button>
-                        <Button onClick={confirmRecognizedClient}>
-                            Confirm
-                        </Button>
+                        <Button onClick={confirmRecognizedClient}>Confirm</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
 
-            {/* New Client Dialog */}
-            <Dialog
-                open={showNewClientDialog}
-                onOpenChange={setShowNewClientDialog}
-            >
+            <Dialog open={showNewClientDialog} onOpenChange={setShowNewClientDialog}>
                 <DialogContent>
                     <DialogHeader>
                         <DialogTitle>Create New Client Profile</DialogTitle>
-                        <DialogDescription>
-                            Enter the name for the new client profile.
-                        </DialogDescription>
+                        <DialogDescription>Enter the name for the new client profile.</DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4 py-4">
                         <div className="space-y-2">
@@ -756,9 +736,7 @@ export const SessionPage: React.FC = () => {
                             <Input
                                 id="name"
                                 value={newClientName}
-                                onChange={(e) =>
-                                    setNewClientName(e.target.value)
-                                }
+                                onChange={(e) => setNewClientName(e.target.value)}
                                 placeholder="Enter client name"
                             />
                         </div>
@@ -773,10 +751,7 @@ export const SessionPage: React.FC = () => {
                         >
                             Cancel
                         </Button>
-                        <Button
-                            onClick={saveNewClient}
-                            disabled={!newClientName.trim()}
-                        >
+                        <Button onClick={saveNewClient} disabled={!newClientName.trim()}>
                             Save Profile
                         </Button>
                     </DialogFooter>
