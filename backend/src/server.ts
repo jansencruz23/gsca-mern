@@ -13,6 +13,7 @@ dotenv.config();
 const allowedOrigins = [
     "http://localhost:3000",
     "https://gsca-mern-frontend.vercel.app",
+    "http://localhost:5173/"
 ];
 
 const app = express();
