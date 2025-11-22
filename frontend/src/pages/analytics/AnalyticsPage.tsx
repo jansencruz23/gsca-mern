@@ -133,14 +133,17 @@ export const AnalyticsPage: React.FC = () => {
         if (!session || !session.stressPoints.length)
             return {
                 chartData: [],
-                questionMarkers: [],
+                questionMarker: [],
             };
 
         const questionMap = new Map();
         if (session.questions) {
             (Array.isArray(session.questions) ? session.questions : []).forEach(
                 (q: any) => {
-                    questionMap.set(q._id.toString(), q.text);
+                    questionMap.set(q._id.toString(), {
+                        text: q.text,
+                        category: q.category || "Uncategorized",
+                    });
                 }
             );
         }
@@ -150,13 +153,21 @@ export const AnalyticsPage: React.FC = () => {
             const fidgeting = point.details?.fidgeting || 0; // higher is more fidgeting (higher stress)
             const movement = point.details?.movement || 0; // higher is more movement (higher stress)
 
-            // Compute smooth overall stress (0-100)
             // Weighting: posture reduces stress, fidgeting & movement increase stress
             const overallStress =
                 ((1 - posture) * POSTURE_WEIGHT +
                     fidgeting * FIDGETING_WEIGHT +
                     movement * MOVEMENT_WEIGHT) *
                 100;
+
+            const questionInfo = point.question
+                ? questionMap.get(point.question.toString()) || {
+                      text: "Unknown Question",
+                      category: "Uncategorized",
+                  }
+                : null;
+
+            console.log("QQQQ:", questionInfo);
 
             return {
                 time: formatTimestamp(point.timestamp),
@@ -165,23 +176,21 @@ export const AnalyticsPage: React.FC = () => {
                 posture: posture * 100,
                 fidgeting: fidgeting * 100,
                 movement: movement * 100,
+                questionMarker: questionInfo ? overallStress : null,
             };
         });
 
         const questionMarkers = session.stressPoints
-            .filter((point) => point.question) // Only keep points that have a question
-            .map((point) => {
-                // Find the full question object from our map
-                const relatedQuestion = questionMap.get(
-                    point.question?.toString()
-                );
-
-                return {
-                    timestamp: point.timestamp,
-                    questionText: relatedQuestion?.text || "Unknown Question",
-                    questionId: relatedQuestion?._id || "Unknown ID", 
-                };
-            });
+            .filter((point) => point.question)
+            .map((point) => ({
+                timestamp: point.timestamp,
+                questionText:
+                    questionMap.get(point.question?.toString())?.text ||
+                    "Unknown Question",
+                questionCategory:
+                    questionMap.get(point.question?.toString())?.category ||
+                    "Uncategorized",
+            }));
 
         console.log("Session questions:", session);
         return { chartData, questionMarkers };
@@ -568,21 +577,141 @@ export const AnalyticsPage: React.FC = () => {
                                             ticks={[0, 25, 50, 75, 100]}
                                         />
                                         <Tooltip
-                                            formatter={(
-                                                value: any,
-                                                name: any
-                                            ) => {
-                                                if (name === "overallStress")
-                                                    return [
-                                                        `Stress: ${value}`,
-                                                        "",
-                                                    ];
-                                                if (name === "fidgeting")
-                                                    return [
-                                                        `Fidgeting: ${value}%`,
-                                                        "",
-                                                    ];
-                                                return [value, name];
+                                            content={({
+                                                active,
+                                                payload,
+                                                label,
+                                            }) => {
+                                                if (
+                                                    active &&
+                                                    payload &&
+                                                    payload.length
+                                                ) {
+                                                    const dataPoint =
+                                                        payload[0].payload;
+
+                                                    // Find if there's a question at this timestamp
+                                                    // Look for questions within 500ms (0.5 seconds) of the current point
+                                                    const questionAtPoint =
+                                                        questionMarkers?.find(
+                                                            (q) =>
+                                                                Math.abs(
+                                                                    q.timestamp -
+                                                                        dataPoint.timestamp
+                                                                ) < 1000
+                                                        );
+
+                                                    return (
+                                                        <div
+                                                            className="bg-white p-3 border border-gray-200 rounded shadow-lg"
+                                                            style={{
+                                                                minWidth:
+                                                                    "200px",
+                                                            }}
+                                                        >
+                                                            {/* Data Section */}
+                                                            <div>
+                                                                <p className="text-xs font-semibold mb-2 text-gray-700">
+                                                                    {label}
+                                                                </p>
+                                                                {payload.map(
+                                                                    (
+                                                                        entry,
+                                                                        index
+                                                                    ) => {
+                                                                        let displayName =
+                                                                            "";
+                                                                        let displayValue =
+                                                                            entry.value;
+
+                                                                        if (
+                                                                            entry.dataKey ===
+                                                                            "overallStress"
+                                                                        ) {
+                                                                            displayName =
+                                                                                "Stress";
+                                                                            displayValue = `${Number(
+                                                                                entry.value
+                                                                            ).toFixed(
+                                                                                1
+                                                                            )}`;
+                                                                        } else if (
+                                                                            entry.dataKey ===
+                                                                            "fidgeting"
+                                                                        ) {
+                                                                            displayName =
+                                                                                "Fidgeting";
+                                                                            displayValue = `${Number(
+                                                                                entry.value
+                                                                            ).toFixed(
+                                                                                1
+                                                                            )}%`;
+                                                                        } else if (
+                                                                            entry.dataKey ===
+                                                                            "questionMarker"
+                                                                        ) {
+                                                                            // Skip displaying questionMarker as a metric
+                                                                            return null;
+                                                                        } else {
+                                                                            displayName =
+                                                                                entry.name ||
+                                                                                "";
+                                                                        }
+
+                                                                        return (
+                                                                            <p
+                                                                                key={
+                                                                                    index
+                                                                                }
+                                                                                className="text-sm flex justify-between"
+                                                                                style={{
+                                                                                    color: entry.color,
+                                                                                }}
+                                                                            >
+                                                                                <span>
+                                                                                    {
+                                                                                        displayName
+                                                                                    }
+
+                                                                                    :
+                                                                                </span>
+                                                                                <span className="font-medium">
+                                                                                    {
+                                                                                        displayValue
+                                                                                    }
+                                                                                </span>
+                                                                            </p>
+                                                                        );
+                                                                    }
+                                                                )}
+
+                                                                {/* Question Section */}
+                                                                {questionAtPoint && (
+                                                                    <div className="mt-3 pt-3 border-t border-gray-200">
+                                                                        <p className="text-xs font-semibold text-red-600 mb-1">
+                                                                            Question
+                                                                            Asked:
+                                                                        </p>
+                                                                        <p className="text-sm text-gray-700">
+                                                                            {
+                                                                                questionAtPoint.questionText
+                                                                            }
+                                                                        </p>
+                                                                        <Badge
+                                                                            variant="outline"
+                                                                            className="mt-2 text-xs"
+                                                                        >
+                                                                            {
+                                                                                questionAtPoint.questionCategory
+                                                                            }
+                                                                        </Badge>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                }
+                                                return null;
                                             }}
                                         />
                                         <Legend />
@@ -602,26 +731,16 @@ export const AnalyticsPage: React.FC = () => {
                                             dot={false}
                                             name="Fidgeting Score"
                                         />
-                                        {/* Render a ReferenceLine for each question asked */}
-                                        {questionMarkers.map(
-                                            (marker, index) => (
-                                                <ReferenceLine
-                                                    key={index}
-                                                    x={formatTimestamp(
-                                                        marker.timestamp
-                                                    )}
-                                                    stroke="#ef4444" // Red color for visibility
-                                                    strokeDasharray="5 5"
-                                                    label={{
-                                                        value: marker.questionText,
-                                                        position: "insideLeft",
-                                                        offset: 10,
-                                                        fill: "#ef4444",
-                                                        fontSize: 12,
-                                                    }}
-                                                />
-                                            )
-                                        )}
+                                        <Line
+                                            type="monotone"
+                                            dataKey="questionMarker"
+                                            stroke="#ef4444" // 🔥 give it a stroke color for the legend
+                                            strokeWidth={2}
+                                            dot={{ fill: "#ef4444", r: 6 }}
+                                            activeDot={{ r: 8 }}
+                                            name="Question Asked"
+                                            connectNulls={false} // prevents the red line from appearing
+                                        />
                                     </LineChart>
                                 </ResponsiveContainer>
                             ) : (

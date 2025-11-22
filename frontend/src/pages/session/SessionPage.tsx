@@ -348,7 +348,7 @@ export const SessionPage: React.FC = () => {
         };
 
         setUsedQuestions((prev) => [...prev, usedQuestion]);
-
+        
         const newStressPoint = {
             timestamp: currentTime,
             state: "vigilance",
