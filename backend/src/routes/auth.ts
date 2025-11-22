@@ -91,7 +91,6 @@ router.post("/login", async (req, res) => {
             },
         });
 
-        console.log("Login successful for counselor:", counselor.username);
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: "Server error" });

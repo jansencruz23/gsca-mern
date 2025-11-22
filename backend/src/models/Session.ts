@@ -22,7 +22,13 @@ const sessionSchema = new mongoose.Schema({
     stressPoints: [stressPointSchema],
     questions: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Question' }],
     summary: { type: String },
-    suggestions: { type: String }
+    suggestions: {
+        summary: { type: String, required: false },
+        sensitiveTopics: [{ type: String }],
+        positivePatterns: [{ type: String }],
+        recommendations: [{ type: String }],
+        nextSessionFocus: [{ type: String }]
+    }
 });
 
 export const Session = mongoose.model("Session", sessionSchema);
