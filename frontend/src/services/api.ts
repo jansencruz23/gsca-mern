@@ -50,6 +50,8 @@ export const clientsAPI = {
         api.post('/clients', data),
     update: (data: { id: string; name: string }) => 
         api.put(`/clients/${data.id}`, { name: data.name }),
+    updateFaceDescriptor: (id: string, data: { faceDescriptor: number[]; snapshot: string }) =>
+        api.put(`/clients/${id}/face-descriptor`, data),
 }
 
 // Sessions API

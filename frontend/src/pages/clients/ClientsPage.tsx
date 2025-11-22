@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import {
     Card,
@@ -20,27 +20,57 @@ import {
     BarChart3,
     Loader2,
     Edit,
+    Camera,
+    AlertCircle,
 } from "lucide-react";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import {
+    detectFace,
+    getFaceSnapshot,
+    loadModels,
+} from "@/services/faceRecognition";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 export const ClientsPage: React.FC = () => {
     const navigate = useNavigate();
 
+    // State for the list of all clients
     const [allClients, setAllClients] = useState<Client[]>([]);
     const [isLoadingClients, setIsLoadingClients] = useState(true);
 
+    // State for the selected client and their sessions
     const [selectedClient, setSelectedClient] = useState<Client | null>(null);
     const [selectedClientSessions, setSelectedClientSessions] = useState<
         Session[]
     >([]);
     const [isLoadingSessions, setIsLoadingSessions] = useState(false);
 
+    // State for the edit client dialog
     const [showEditDialog, setShowEditDialog] = useState(false);
     const [editingClient, setEditingClient] = useState<Client | null>(null);
     const [editClientName, setEditClientName] = useState("");
     const [isSaving, setIsSaving] = useState(false);
+
+    // --- State for the Update Face Dialog ---
+    const [showUpdateFaceDialog, setShowUpdateFaceDialog] = useState(false);
+    const [isUpdatingFace, setIsUpdatingFace] = useState(false);
+    const [modelsLoaded, setModelsLoaded] = useState(false);
+    const [updateStatus, setUpdateStatus] = useState("");
+    const [isVideoReady, setIsVideoReady] = useState(false);
+
+    // Refs for the video and canvas elements inside the dialog
+    const videoRef = useRef<HTMLVideoElement>(null);
+    const canvasRef = useRef<HTMLCanvasElement>(null);
+    const streamRef = useRef<MediaStream | null>(null);
 
     useEffect(() => {
         const fetchClients = async () => {
@@ -133,6 +163,96 @@ export const ClientsPage: React.FC = () => {
         }
     };
 
+    // --- Update Face Handlers ---
+    const handleOpenUpdateFaceDialog = () => {
+        setShowUpdateFaceDialog(true);
+        setUpdateStatus("");
+        setIsVideoReady(false);
+        loadFaceApiModels();
+    };
+
+    const handleCloseUpdateFaceDialog = () => {
+        setShowUpdateFaceDialog(false);
+        // Stop the camera stream
+        if (streamRef.current) {
+            streamRef.current.getTracks().forEach((track) => track.stop());
+        }
+    };
+
+    const loadFaceApiModels = async () => {
+        setUpdateStatus("Loading face recognition models...");
+        const loaded = await loadModels();
+        if (loaded) {
+            setModelsLoaded(true);
+            setUpdateStatus("");
+            startCameraForUpdate();
+        } else {
+            setUpdateStatus("Failed to load models.");
+        }
+    };
+
+    const startCameraForUpdate = async () => {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({
+                video: true,
+            });
+            streamRef.current = stream;
+
+            if (videoRef.current) {
+                videoRef.current.srcObject = stream;
+                videoRef.current.onloadedmetadata = () => {
+                    videoRef.current?.play();
+                    setIsVideoReady(true);
+                };
+            }
+        } catch (error) {
+            console.error("Error accessing webcam:", error);
+            setUpdateStatus("Error accessing webcam.");
+        }
+    };
+
+    const handleUpdateFace = async () => {
+        if (
+            !selectedClient ||
+            !videoRef.current ||
+            !isVideoReady ||
+            !modelsLoaded
+        ) {
+            return;
+        }
+
+        setIsUpdatingFace(true);
+        setUpdateStatus("Detecting face...");
+
+        try {
+            const snapshot = getFaceSnapshot(videoRef.current);
+            const { descriptor } = await detectFace(videoRef.current);
+
+            if (!descriptor) {
+                setUpdateStatus("No face detected. Please try again.");
+                setIsUpdatingFace(false);
+                return;
+            }
+
+            setUpdateStatus("Updating face recognition data...");
+            // Assumes you have an API endpoint to update the face descriptor
+            await clientsAPI.updateFaceDescriptor(selectedClient._id, {
+                faceDescriptor: descriptor,
+                snapshot: snapshot,
+            });
+
+            setUpdateStatus("Face recognition data updated successfully!");
+            setTimeout(() => {
+                handleCloseUpdateFaceDialog();
+            }, 1500);
+        } catch (error) {
+            console.error("Error updating face:", error);
+            setUpdateStatus("An error occurred. Please try again.");
+        } finally {
+            setIsUpdatingFace(false);
+        }
+    };
+
     const formatDate = (dateString: string) => {
         return new Date(dateString).toLocaleDateString("en-US", {
             year: "numeric",
@@ -217,7 +337,7 @@ export const ClientsPage: React.FC = () => {
                                         variant="outline"
                                         size="sm"
                                         onClick={(e) => {
-                                            e.stopPropagation(); // Prevents the row click event
+                                            e.stopPropagation();
                                             handleOpenEditDialog(client);
                                         }}
                                     >
@@ -237,18 +357,28 @@ export const ClientsPage: React.FC = () => {
 
         return (
             <div>
-                <div className="flex items-center space-x-2 mb-6">
+                <div className="flex items-center justify-between mb-6">
+                    <div className="flex items-center space-x-2">
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={handleBackToList}
+                        >
+                            <ArrowLeft className="mr-2 h-4 w-4" /> Back to
+                            Clients
+                        </Button>
+                        <h1 className="text-3xl font-bold">
+                            {selectedClient.name}'s Sessions
+                        </h1>
+                    </div>
+                    {/* NEW: Update Face Button */}
                     <Button
                         variant="outline"
-                        size="sm"
-                        onClick={handleBackToList}
+                        onClick={handleOpenUpdateFaceDialog}
                     >
-                        <ArrowLeft className="mr-2 h-4 w-4" />
-                        Back to Clients
+                        <Camera className="mr-2 h-4 w-4" /> Update Face
+                        Recognition
                     </Button>
-                    <h1 className="text-3xl font-bold">
-                        {selectedClient.name}'s Sessions
-                    </h1>
                 </div>
 
                 {isLoadingSessions ? (
@@ -313,7 +443,7 @@ export const ClientsPage: React.FC = () => {
                                                         )
                                                     }
                                                 >
-                                                    <BarChart3 className="mr-2 h-4 w-4" />
+                                                    <BarChart3 className="mr-2 h-4 w-4" />{" "}
                                                     View Analytics
                                                 </Button>
                                             </div>
@@ -337,28 +467,54 @@ export const ClientsPage: React.FC = () => {
                 <DialogContent>
                     <DialogHeader>
                         <DialogTitle>Edit Client Name</DialogTitle>
-                        <DialogDescription>
-                            Make changes to the client's name here. Click save when you're done.
-                        </DialogDescription>
+                        <DialogDescription>Make changes to the client's name here. Click save when you're done.</DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4 py-4">
                         <div className="space-y-2">
                             <Label htmlFor="name">Name</Label>
-                            <Input
-                                id="name"
-                                value={editClientName}
-                                onChange={(e) => setEditClientName(e.target.value)}
-                                placeholder="Enter client name"
-                            />
+                            <Input id="name" value={editClientName} onChange={(e) => setEditClientName(e.target.value)} placeholder="Enter client name" />
                         </div>
                     </div>
                     <DialogFooter>
-                        <Button variant="outline" onClick={handleCloseEditDialog}>
-                            Cancel
-                        </Button>
+                        <Button variant="outline" onClick={handleCloseEditDialog}>Cancel</Button>
                         <Button onClick={handleSaveEdit} disabled={!editClientName.trim() || isSaving}>
-                            {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                            {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                             Save Changes
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* NEW: Update Face Dialog */}
+            <Dialog open={showUpdateFaceDialog} onOpenChange={setShowUpdateFaceDialog}>
+                <DialogContent className="sm:max-w-[425px]">
+                    <DialogHeader>
+                        <DialogTitle>Update Face Recognition</DialogTitle>
+                        <DialogDescription>
+                            Center your face in the camera and click "Update" to improve recognition accuracy.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                        <div className="relative bg-black rounded-lg overflow-hidden aspect-video">
+                            <video ref={videoRef} className="absolute inset-0 w-full h-full object-cover" />
+                            {!isVideoReady && (
+                                <div className="absolute inset-0 flex items-center justify-center">
+                                    <Loader2 className="h-8 w-8 text-white animate-spin" />
+                                </div>
+                            )}
+                        </div>
+                        {updateStatus && (
+                            <Alert>
+                                {updateStatus.includes("Error") || updateStatus.includes("No face") ? <AlertCircle className="h-4 w-4" /> : <Loader2 className="h-4 w-4 animate-spin" />}
+                                <AlertDescription>{updateStatus}</AlertDescription>
+                            </Alert>
+                        )}
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={handleCloseUpdateFaceDialog}>Cancel</Button>
+                        <Button onClick={handleUpdateFace} disabled={isUpdatingFace || !isVideoReady || !modelsLoaded}>
+                            {isUpdatingFace && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                            Update Face Data
                         </Button>
                     </DialogFooter>
                 </DialogContent>

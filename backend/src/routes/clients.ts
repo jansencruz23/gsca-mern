@@ -144,6 +144,26 @@ router.put("/:id", authMiddleware, async (req, res) => {
     }
 });
 
+// Update client's face descriptor
+router.put("/:id/face-descriptor", authMiddleware, async (req, res) => {
+    try {
+        const { faceDescriptor, snapshot } = req.body;
+        const client = await Client.findById(req.params.id);
+        if (!client) {
+            return res.status(404).json({ message: "Client not found" });
+        }
+        client.faceDescriptors.push({
+            descriptor: faceDescriptor,
+            snapshot,
+        });
+        await client.save();
+        res.json(client);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: "Server error" });
+    }
+});
+
 function calculateEuclideanDistance(descriptor1: any, descriptor2: any) {
     if (descriptor1.length !== descriptor2.length) {
         return Infinity;
