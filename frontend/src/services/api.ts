@@ -59,6 +59,8 @@ export const sessionsAPI = {
         api.put(`/sessions/${id}/stress-points`, { stressPoints }),
     updateSummary: (id: string, summary: string, suggestions: string) =>
         api.put(`/sessions/${id}/summary`, { summary, suggestions }),
+    generateInsights: (id: string) => 
+        api.post(`/sessions/${id}/generate-insights`),
 };
 
 // Questions API
