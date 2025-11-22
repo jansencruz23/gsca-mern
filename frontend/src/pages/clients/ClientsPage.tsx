@@ -57,7 +57,7 @@ export const ClientsPage: React.FC = () => {
         const fetchClientSessions = async () => {
             setIsLoadingSessions(true);
             try {
-                const response = await sessionsAPI.getById(selectedClient._id);
+                const response = await sessionsAPI.getByClientId(selectedClient._id);
                 setSelectedClientSessions(response.data);
             } catch (error) {
                 console.error("Error fetching client sessions:", error);

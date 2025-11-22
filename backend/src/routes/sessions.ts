@@ -160,4 +160,27 @@ router.post(
     }
 );
 
+router.get("/client/:clientId", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+        const { clientId } = req.params;
+        const sessions = await Session.find({ 
+            counselor: req.user.id,
+            client: clientId 
+        })
+        .populate("client")
+        .populate("counselor")
+        .populate("questions")
+        .sort({ date: -1});
+
+        if (sessions.length === 0) {
+            return res.status(404).json({ message: "No sessions found for this client" });
+        }
+
+        res.json(sessions);
+    } catch (error) {
+        console.error('Error fetching sessions for client:', error);
+        res.status(500).json({ message: "Server error" });
+    }
+});
+
 export default router;

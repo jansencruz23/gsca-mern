@@ -56,6 +56,7 @@ export const sessionsAPI = {
     create: (sessionData: { clientId: string; description: string; }) =>
         api.post('/sessions', sessionData),
     getById: (id: string) => api.get(`/sessions/${id}`),
+    getByClientId: (cliendId: string) => api.get(`/sessions/client/${cliendId}`),
     updateStressPoints: (id: string, stressPoints: any[]) => 
         api.put(`/sessions/${id}/stress-points`, { stressPoints }),
     updateSummary: (id: string, summary: string, suggestions: string) =>
