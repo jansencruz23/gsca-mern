@@ -52,6 +52,7 @@ export const clientsAPI = {
 
 // Sessions API
 export const sessionsAPI = {
+    getAll: () => api.get('/sessions'),
     create: (sessionData: { clientId: string; description: string; }) =>
         api.post('/sessions', sessionData),
     getById: (id: string) => api.get(`/sessions/${id}`),

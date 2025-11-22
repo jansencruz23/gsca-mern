@@ -7,6 +7,19 @@ import { generateSessionInsights } from "../services/geminiService.ts";
 
 const router = express.Router();
 
+router.get("/", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+        const sessions = await Session.find({ counselor: req.user.id })
+            .populate("client")
+            .sort({ date: -1});
+
+        res.json(sessions);
+    } catch (error) {
+        console.error('Error fetching sessions:', error);
+        res.status(500).json({ message: "Server error" });
+    }
+});
+
 // Create a new session
 router.post("/", authMiddleware, async (req: AuthRequest, res) => {
     try {
