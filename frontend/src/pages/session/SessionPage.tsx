@@ -33,7 +33,6 @@ import {
     Camera,
     Square,
     Play,
-    User,
     AlertCircle,
     MessageSquare,
     Loader2,
@@ -161,7 +160,7 @@ export const SessionPage: React.FC = () => {
                             await mediapipeServiceRef.current.initialize(
                                 videoRef.current!,
                                 canvasRef.current!,
-                                (results) => {},
+                                () => {},
                                 (stressAnalysis: StressAnalysis) => {
                                     setCurrentStressState(stressAnalysis.state);
 

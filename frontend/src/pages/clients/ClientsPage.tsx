@@ -16,7 +16,6 @@ import {
     ArrowLeft,
     Calendar,
     User,
-    Clock,
     BarChart3,
     Loader2,
     Edit,
@@ -69,7 +68,6 @@ export const ClientsPage: React.FC = () => {
 
     // Refs for the video and canvas elements inside the dialog
     const videoRef = useRef<HTMLVideoElement>(null);
-    const canvasRef = useRef<HTMLCanvasElement>(null);
     const streamRef = useRef<MediaStream | null>(null);
 
     useEffect(() => {

@@ -21,15 +21,15 @@ export class MediapipePoseService {
     private canvasCtx: CanvasRenderingContext2D | null = null;
     private lastPoseLandmarks: any[] = [];
     private movementHistory: number[] = [];
-    private fidgetingCount: number = 0;
+    //private fidgetingCount: number = 0;
     private lastKneePositions: {
         left: { x: number; y: number } | null;
         right: { x: number; y: number } | null;
     } = { left: null, right: null };
-    private legBounceHistory: {
-        timestamp: number;
-        direction: "up" | "down" | null;
-    }[] = [];
+    //private legBounceHistory: {
+    //    timestamp: number;
+    //    direction: "up" | "down" | null;
+    //}[] = [];
     private lastFrameTime: number = 0;
     private isInitialized: boolean = false;
     private onResultsCallback: ((results: Results) => void) | null = null;

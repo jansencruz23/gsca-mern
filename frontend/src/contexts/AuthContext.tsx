@@ -3,7 +3,6 @@ import React, {
     useContext,
     useReducer,
     useEffect,
-    act,
 } from "react";
 import { authAPI } from "../services/api";
 import type { AuthState, User } from "../types/auth";

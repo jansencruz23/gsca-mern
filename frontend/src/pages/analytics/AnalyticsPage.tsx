@@ -15,7 +15,7 @@ import {
     TabsList,
     TabsTrigger,
 } from "../../components/ui/tabs";
-import { questionsAPI, sessionsAPI } from "../../services/api";
+import { sessionsAPI } from "../../services/api";
 import type { Session } from "../../types/session";
 import {
     LineChart,
@@ -32,12 +32,10 @@ import {
 } from "recharts";
 import {
     ArrowLeft,
-    Download,
     Calendar,
     User,
     Clock,
     TrendingUp,
-    AlertTriangle,
     BarChart3,
     AlertCircle,
 } from "lucide-react";
@@ -155,10 +153,6 @@ export const AnalyticsPage: React.FC = () => {
 
     const handleSelectSession = (session: Session) => {
         setSelectedSession(session);
-    };
-
-    const handleBackToList = () => {
-        setSelectedSession(null);
     };
 
     useEffect(() => {
