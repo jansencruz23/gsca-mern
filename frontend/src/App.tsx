@@ -25,10 +25,6 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({
     }
 
     if (!isAuthenticated) {
-        return <Navigate to="/dashboard" replace />;
-    }
-
-    if (!isAuthenticated) {
         return <Navigate to="/login" replace />;
     }
 

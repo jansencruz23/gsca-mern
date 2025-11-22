@@ -1,9 +1,4 @@
-import React, {
-    createContext,
-    useContext,
-    useReducer,
-    useEffect,
-} from "react";
+import React, { createContext, useContext, useReducer, useEffect } from "react";
 import { authAPI } from "../services/api";
 import type { AuthState, User } from "../types/auth";
 
@@ -14,10 +9,11 @@ type AuthAction =
     | { type: "LOGOUT" }
     | { type: "SET_LOADING"; payload: boolean };
 
+const token = localStorage.getItem("token");
 const initialState: AuthState = {
     user: null,
-    token: localStorage.getItem("token"),
-    isAuthenticated: false,
+    token: token,
+    isAuthenticated: !!token, // Set to true if a token exists, false otherwise
     isLoading: false,
 };
 
@@ -80,32 +76,29 @@ export const useAuth = () => {
     return context;
 };
 
-export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
+    children,
+}) => {
     const [state, dispatch] = useReducer(authReducer, initialState);
 
     useEffect(() => {
-        const checkAuth = async () => {
-            if (state.token) {
-                try {
-                    const response = await authAPI.validateToken();
-
+        // This effect should only run once on component mount to check the initial token.
+        if (state.token) {
+            // We have a token, let's verify it.
+            authAPI.validateToken()
+                .then(response => {
                     dispatch({
                         type: "LOGIN_SUCCESS",
-                        payload: {
-                            user: response.data,
-                            token: state.token,
-                        },
+                        payload: { user: response.data, token: state.token || '' },
                     });
-                } catch (error) {
+                })
+                .catch(error => {
+                    // Token is invalid, clear it and log the user out.
+                    console.error("Token validation failed:", error);
                     dispatch({ type: "LOGIN_FAILURE" });
-                }
-            } else {
-                dispatch ({ type: "SET_LOADING" , payload: false });
-            }
-        };
-
-        checkAuth();
-    }, [state.token]);
+                });
+        }
+    }, []);
 
     const login = async (username: string, password: string) => {
         dispatch({ type: "LOGIN_START" });
