@@ -183,4 +183,24 @@ router.get("/client/:clientId", authMiddleware, async (req: AuthRequest, res) =>
     }
 });
 
+router.put('/:id/description', authMiddleware, async (req: AuthRequest, res) => {
+    try {
+        const { description } = req.body;
+        const session = await Session.findByIdAndUpdate(
+            req.params.id,
+            { description },
+            { new: true }
+        );
+
+        if (!session) {
+            return res.status(404).json({ message: "Session not found" });
+        }
+
+        res.json(session);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: "Server error" });
+    }
+});
+
 export default router;

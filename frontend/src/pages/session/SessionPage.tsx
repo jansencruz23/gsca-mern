@@ -346,6 +346,7 @@ export const SessionPage: React.FC = () => {
             }
 
             await sessionsAPI.updateStressPoints(session._id, stressPoints);
+            await sessionsAPI.updateDescription(session._id, sessionDescription);
             navigate(`/analytics/${session._id}`);
         } catch (error) {
             console.error("Error ending session:", error);
@@ -391,6 +392,11 @@ export const SessionPage: React.FC = () => {
         setClient(selectedClient);
         setClientSearchTerm("");
         setShowClientSearchResults(false);
+    };
+
+    const handleDescriptionChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setSessionDescription(e.target.value);
+        console.log(`Session Description changed to: ${e.target.value}`);
     };
 
     const handleClientDeselect = () => {
@@ -516,7 +522,7 @@ export const SessionPage: React.FC = () => {
                                     <Input
                                         id="description"
                                         value={sessionDescription}
-                                        onChange={(e) => setSessionDescription(e.target.value)}
+                                        onChange={handleDescriptionChange}
                                         placeholder="Enter a description for this session"
                                     />
                                 </div>

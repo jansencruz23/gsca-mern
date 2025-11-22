@@ -1,5 +1,6 @@
 import dotenv from "dotenv";
 import { GoogleGenAI } from "@google/genai";
+import { Question } from "../models/Question.ts";
 
 export interface SessionInsights {
     summary: string;
@@ -45,7 +46,6 @@ export const generateSessionInsights = async (
                 "No questions found in session data, attempting to fetch..."
             );
             try {
-                const Question = require("../models/question");
                 const questions = await Question.find({});
 
                 questions.forEach((q: any) => {
