@@ -11,6 +11,8 @@ import { RegisterPage } from "./pages/auth/RegisterPage";
 import { DashboardPage } from "./pages/dashboard/DashboadPage";
 import { SessionPage } from "./pages/session/SessionPage";
 import { Header } from "./components/layout/Header";
+import { AnalyticsPage } from "./pages/analytics/AnalyticsPage";
+import { QuestionsPage } from "./pages/questions/QuestionsPage";
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({
     children,
@@ -50,6 +52,22 @@ const AppRoutes: React.FC = () => {
                             element={
                                 <ProtectedRoute>
                                     <SessionPage />
+                                </ProtectedRoute>
+                            }
+                        />
+                        <Route
+                            path="/analytics/:id"
+                            element={
+                                <ProtectedRoute>
+                                    <AnalyticsPage />
+                                </ProtectedRoute>
+                            }
+                        />
+                        <Route
+                            path="/questions/"
+                            element={
+                                <ProtectedRoute>
+                                    <QuestionsPage />
                                 </ProtectedRoute>
                             }
                         />

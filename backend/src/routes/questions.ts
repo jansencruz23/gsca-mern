@@ -22,7 +22,7 @@ router.post("/", authMiddleware, async (req: AuthRequest, res) => {
         const question = new Question({
             text,
             category,
-            councelor: req.user.id,
+            counselor: req.user.id,
         });
 
         await question.save();
