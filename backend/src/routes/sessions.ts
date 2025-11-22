@@ -27,13 +27,19 @@ router.post("/", authMiddleware, async (req: AuthRequest, res) => {
     try {
         const { clientId, description } = req.body;
 
-        const client = await Client.findById(clientId);
+        let newClientId = clientId;
+        let client = null;
+        if (!clientId) {
+            newClientId = '6921f64b07da921ab4e5dc64';
+        }
+
+        client = await Client.findById(newClientId);
         if (!client) {
             return res.status(404).json({ message: "Client not found" });
         }
 
         const session = new Session({
-            client: clientId,
+            client: newClientId,
             counselor: req.user.id,
             description,
         });

@@ -142,6 +142,7 @@ export const generateSessionInsights = async (
         `;
 
         console.log("Gemini prompt:", prompt);
+        console.log('Total points:', totalPoints);
 
         const response = await genAI.models.generateContent({
             model: "gemini-2.5-flash",

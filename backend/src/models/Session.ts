@@ -1,4 +1,4 @@
-import mongoose, { mongo } from "mongoose";
+import mongoose, { mongo, set } from "mongoose";
 
 const stressPointSchema = new mongoose.Schema({ 
     timestamp: { type: Number, required: true },
@@ -15,7 +15,7 @@ const stressPointSchema = new mongoose.Schema({
 });
 
 const sessionSchema = new mongoose.Schema({ 
-    client: { type: mongoose.Schema.Types.ObjectId, ref: 'Client', required: true },
+    client: { type: mongoose.Schema.Types.ObjectId, ref: 'Client', required: false, default: null, set: (value: any) => value === "" ? null : value },
     counselor: { type: mongoose.Schema.Types.ObjectId, ref: 'Counselor', required: true },
     description: { type: String},
     date: { type: Date, default: Date.now },

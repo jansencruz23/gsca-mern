@@ -603,7 +603,7 @@ export const AnalyticsPage: React.FC = () => {
                                     <div>
                                         <p className="font-medium">
                                             {typeof session.client === "object"
-                                                ? session.client.name
+                                                ? session.client?.name
                                                 : "Unknown Client"}
                                         </p>
                                         <p className="text-sm text-gray-500">
@@ -667,7 +667,7 @@ export const AnalyticsPage: React.FC = () => {
                                     <p className="text-sm text-gray-500">
                                         {typeof selectedSession.client ===
                                         "object"
-                                            ? selectedSession.client.name
+                                            ? selectedSession.client?.name
                                             : "Unknown Client"}
                                     </p>
                                 </div>
