@@ -68,6 +68,14 @@ const AppRoutes: React.FC = () => {
                             }
                         />
                         <Route
+                            path="/analytics"
+                            element={
+                                <ProtectedRoute>
+                                    <AnalyticsPage />
+                                </ProtectedRoute>
+                            }
+                        />
+                        <Route
                             path="/questions/"
                             element={
                                 <ProtectedRoute>

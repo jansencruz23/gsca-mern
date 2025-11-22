@@ -11,6 +11,8 @@ router.get("/", authMiddleware, async (req: AuthRequest, res) => {
     try {
         const sessions = await Session.find({ counselor: req.user.id })
             .populate("client")
+            .populate("counselor")
+            .populate("questions")
             .sort({ date: -1});
 
         res.json(sessions);
