@@ -371,14 +371,17 @@ export const ClientsPage: React.FC = () => {
                             {selectedClient.name}'s Sessions
                         </h1>
                     </div>
-                    {/* NEW: Update Face Button */}
-                    <Button
-                        variant="outline"
-                        onClick={handleOpenUpdateFaceDialog}
-                    >
-                        <Camera className="mr-2 h-4 w-4" /> Update Face
-                        Recognition
-                    </Button>
+                    {/* Update Face Button */}
+                    {selectedClient._id !==
+                        import.meta.env.VITE_UNKNOWN_CLIENT_ID && (
+                        <Button
+                            variant="outline"
+                            onClick={handleOpenUpdateFaceDialog}
+                        >
+                            <Camera className="mr-2 h-4 w-4" /> Update Face
+                            Recognition
+                        </Button>
+                    )}
                 </div>
 
                 {isLoadingSessions ? (
@@ -467,58 +470,108 @@ export const ClientsPage: React.FC = () => {
                 <DialogContent>
                     <DialogHeader>
                         <DialogTitle>Edit Client Name</DialogTitle>
-                        <DialogDescription>Make changes to the client's name here. Click save when you're done.</DialogDescription>
+                        <DialogDescription>
+                            Make changes to the client's name here. Click save
+                            when you're done.
+                        </DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4 py-4">
                         <div className="space-y-2">
                             <Label htmlFor="name">Name</Label>
-                            <Input id="name" value={editClientName} onChange={(e) => setEditClientName(e.target.value)} placeholder="Enter client name" />
+                            <Input
+                                id="name"
+                                value={editClientName}
+                                onChange={(e) =>
+                                    setEditClientName(e.target.value)
+                                }
+                                placeholder="Enter client name"
+                            />
                         </div>
                     </div>
                     <DialogFooter>
-                        <Button variant="outline" onClick={handleCloseEditDialog}>Cancel</Button>
-                        <Button onClick={handleSaveEdit} disabled={!editClientName.trim() || isSaving}>
-                            {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        <Button
+                            variant="outline"
+                            onClick={handleCloseEditDialog}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            onClick={handleSaveEdit}
+                            disabled={!editClientName.trim() || isSaving}
+                        >
+                            {isSaving && (
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            )}
                             Save Changes
                         </Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
 
-            {/* NEW: Update Face Dialog */}
-            <Dialog open={showUpdateFaceDialog} onOpenChange={setShowUpdateFaceDialog}>
-                <DialogContent className="sm:max-w-[425px]">
-                    <DialogHeader>
-                        <DialogTitle>Update Face Recognition</DialogTitle>
-                        <DialogDescription>
-                            Center your face in the camera and click "Update" to improve recognition accuracy.
-                        </DialogDescription>
-                    </DialogHeader>
-                    <div className="space-y-4 py-4">
-                        <div className="relative bg-black rounded-lg overflow-hidden aspect-video">
-                            <video ref={videoRef} className="absolute inset-0 w-full h-full object-cover" />
-                            {!isVideoReady && (
-                                <div className="absolute inset-0 flex items-center justify-center">
-                                    <Loader2 className="h-8 w-8 text-white animate-spin" />
-                                </div>
+            {/* Update Face Dialog */}
+            {selectedClient && selectedClient._id !== import.meta.env.VITE_UNKNOWN_CLIENT_ID && (
+                <Dialog
+                    open={showUpdateFaceDialog}
+                    onOpenChange={setShowUpdateFaceDialog}
+                >
+                    <DialogContent className="sm:max-w-[425px]">
+                        <DialogHeader>
+                            <DialogTitle>Update Face Recognition</DialogTitle>
+                            <DialogDescription>
+                                Center your face in the camera and click
+                                "Update" to improve recognition accuracy.
+                            </DialogDescription>
+                        </DialogHeader>
+                        <div className="space-y-4 py-4">
+                            <div className="relative bg-black rounded-lg overflow-hidden aspect-video">
+                                <video
+                                    ref={videoRef}
+                                    className="absolute inset-0 w-full h-full object-cover"
+                                />
+                                {!isVideoReady && (
+                                    <div className="absolute inset-0 flex items-center justify-center">
+                                        <Loader2 className="h-8 w-8 text-white animate-spin" />
+                                    </div>
+                                )}
+                            </div>
+                            {updateStatus && (
+                                <Alert>
+                                    {updateStatus.includes("Error") ||
+                                    updateStatus.includes("No face") ? (
+                                        <AlertCircle className="h-4 w-4" />
+                                    ) : (
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                    )}
+                                    <AlertDescription>
+                                        {updateStatus}
+                                    </AlertDescription>
+                                </Alert>
                             )}
                         </div>
-                        {updateStatus && (
-                            <Alert>
-                                {updateStatus.includes("Error") || updateStatus.includes("No face") ? <AlertCircle className="h-4 w-4" /> : <Loader2 className="h-4 w-4 animate-spin" />}
-                                <AlertDescription>{updateStatus}</AlertDescription>
-                            </Alert>
-                        )}
-                    </div>
-                    <DialogFooter>
-                        <Button variant="outline" onClick={handleCloseUpdateFaceDialog}>Cancel</Button>
-                        <Button onClick={handleUpdateFace} disabled={isUpdatingFace || !isVideoReady || !modelsLoaded}>
-                            {isUpdatingFace && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                            Update Face Data
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
+                        <DialogFooter>
+                            <Button
+                                variant="outline"
+                                onClick={handleCloseUpdateFaceDialog}
+                            >
+                                Cancel
+                            </Button>
+                            <Button
+                                onClick={handleUpdateFace}
+                                disabled={
+                                    isUpdatingFace ||
+                                    !isVideoReady ||
+                                    !modelsLoaded
+                                }
+                            >
+                                {isUpdatingFace && (
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                )}
+                                Update Face Data
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
+            )}
         </div>
     );
 };

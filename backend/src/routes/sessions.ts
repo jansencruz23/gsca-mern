@@ -4,6 +4,9 @@ import { Session } from "../models/Session.ts";
 import { Client } from "../models/Client.ts";
 import authMiddleware from "../middleware/auth.ts";
 import { generateSessionInsights } from "../services/geminiService.ts";
+import dotenv from "dotenv";
+
+dotenv.config();
 
 const router = express.Router();
 
@@ -30,7 +33,7 @@ router.post("/", authMiddleware, async (req: AuthRequest, res) => {
         let newClientId = clientId;
         let client = null;
         if (!clientId) {
-            newClientId = '6921f64b07da921ab4e5dc64';
+            newClientId = process.env.UNKNOWN_CLIENT_ID || '';
         }
 
         client = await Client.findById(newClientId);
