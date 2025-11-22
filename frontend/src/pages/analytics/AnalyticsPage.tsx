@@ -112,7 +112,7 @@ export const AnalyticsPage: React.FC = () => {
 
                 if (
                     sessionData.suggestions &&
-                    typeof sessionData.suggestions === "object" && 
+                    typeof sessionData.suggestions === "object" &&
                     sessionData.suggestions.summary
                 ) {
                     // --- SCENARIO A: REVISITING A SESSION ---
@@ -123,7 +123,10 @@ export const AnalyticsPage: React.FC = () => {
                     // If suggestions are a string (old format) or don't exist, generate them
                     setIsGeneratingInitialSuggestions(true);
                     try {
-                        console.log("Generating initial suggestions for session:", id);
+                        console.log(
+                            "Generating initial suggestions for session:",
+                            id
+                        );
                         const insightsResponse =
                             await sessionsAPI.generateInsights(sessionData._id);
                         setParsedSuggestions(insightsResponse.data.suggestions);
@@ -637,22 +640,10 @@ export const AnalyticsPage: React.FC = () => {
             <div className="container mx-auto px-4 py-8">
                 <div className="flex items-center justify-between mb-6">
                     <div className="flex items-center space-x-2">
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => navigate("/dashboard")}
-                        >
-                            <ArrowLeft className="mr-2 h-4 w-4" />
-                            Back to Dashboard
-                        </Button>
                         <h1 className="text-3xl font-bold">
                             Session Analytics
                         </h1>
                     </div>
-                    <Button variant="outline">
-                        <Download className="mr-2 h-4 w-4" />
-                        Export Report
-                    </Button>
                 </div>
 
                 {/* Session Info */}
@@ -1211,7 +1202,14 @@ export const AnalyticsPage: React.FC = () => {
     return (
         <div className="container mx-auto px-4 py-8">
             <div className="flex items-center justify-between mb-6">
-                <h1 className="text-3xl font-bold">Session Analytics</h1>
+                <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => navigate("/dashboard")}
+                >
+                    <ArrowLeft className="mr-2 h-4 w-4" />
+                    Back to Dashboard
+                </Button>
                 <Button onClick={() => navigate("/session")}>
                     Start New Session
                 </Button>

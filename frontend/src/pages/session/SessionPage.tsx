@@ -55,6 +55,12 @@ export const SessionPage: React.FC = () => {
     const [client, setClient] = useState<Client | null>(null);
     const [isRecognizing, setIsRecognizing] = useState(false);
     const [showNewClientDialog, setShowNewClientDialog] = useState(false);
+    const [showPermissionDialog, setShowPermissionDialog] = useState(false);
+    const [showConfirmationDialog, setShowConfirmationDialog] = useState(false);
+    const [recognizedClient, setRecognizedClient] = useState<Client | null>(
+        null
+    );
+    const [recognitionConfidence, setRecognitionConfidence] = useState(0);
     const [newClientName, setNewClientName] = useState("");
     const [questions, setQuestions] = useState<Question[]>([]);
     const [usedQuestions, setUsedQuestions] = useState<UsedQuestion[]>([]);
@@ -231,18 +237,10 @@ export const SessionPage: React.FC = () => {
 
             if (response.data.client) {
                 // Existing client recognized
-                setClient(response.data.client);
-                setRecognitionStatus(
-                    `Recognized client: ${
-                        response.data.client.name
-                    } (Confidence: ${(response.data.confidence * 100).toFixed(
-                        1
-                    )}%)`
-                );
-
-                setTimeout(() => {
-                    setRecognitionStatus("");
-                }, 3000);
+                setRecognizedClient(response.data.client);
+                setRecognitionConfidence(response.data.confidence);
+                setShowConfirmationDialog(true);
+                setRecognitionStatus("");
             } else {
                 // No matching client found, prompt to create new
                 setRecognitionStatus("No matching client found.");
@@ -254,6 +252,25 @@ export const SessionPage: React.FC = () => {
         } finally {
             setIsRecognizing(false);
         }
+    };
+
+    const confirmRecognizedClient = () => {
+        if (recognizedClient) {
+            setClient(recognizedClient);
+            setShowConfirmationDialog(false);
+            setRecognitionStatus(`Client confirmed: ${recognizedClient.name}`);
+
+            setTimeout(() => {
+                setRecognitionStatus("");
+            }, 3000);
+        }
+    };
+
+    const retryRecognition = () => {
+        setShowConfirmationDialog(false);
+        setRecognizedClient(null);
+        setRecognitionConfidence(0);
+        recognizeClient();
     };
 
     const saveNewClient = async () => {
@@ -287,14 +304,9 @@ export const SessionPage: React.FC = () => {
     };
 
     const startSession = async () => {
-        if (!client) {
-            alert("Please select or recognize a client first.");
-            return;
-        }
-
         try {
             const response = await sessionsAPI.create({
-                clientId: client._id,
+                clientId: client?._id || "",
                 description: sessionDescription,
             });
 
@@ -348,7 +360,7 @@ export const SessionPage: React.FC = () => {
         };
 
         setUsedQuestions((prev) => [...prev, usedQuestion]);
-        
+
         const newStressPoint = {
             timestamp: currentTime,
             state: "vigilance",
@@ -479,32 +491,28 @@ export const SessionPage: React.FC = () => {
                                                 ? "Camera Ready"
                                                 : "Start Camera"}
                                         </Button>
-                                        {!client && (
-                                            <Button
-                                                onClick={recognizeClient}
-                                                variant="outline"
-                                                disabled={
-                                                    !isVideoReady ||
-                                                    isRecognizing ||
-                                                    !modelsLoaded
-                                                }
-                                            >
-                                                {isRecognizing ? (
-                                                    <>
-                                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                                        Recognizing...
-                                                    </>
-                                                ) : (
-                                                    "Recognize Client"
-                                                )}
-                                            </Button>
-                                        )}
+                                        <Button
+                                            onClick={recognizeClient}
+                                            variant="outline"
+                                            disabled={
+                                                !isVideoReady ||
+                                                isRecognizing ||
+                                                !modelsLoaded
+                                            }
+                                        >
+                                            {isRecognizing ? (
+                                                <>
+                                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                                    Recognizing...
+                                                </>
+                                            ) : (
+                                                "Recognize Client (Optional)"
+                                            )}
+                                        </Button>
                                         <Button
                                             onClick={startSession}
                                             disabled={
-                                                !client ||
-                                                !isVideoReady ||
-                                                !mediapipeReady
+                                                !isVideoReady || !mediapipeReady
                                             }
                                         >
                                             <Play className="mr-2 h-4 w-4" />
@@ -571,6 +579,21 @@ export const SessionPage: React.FC = () => {
                                             <p className="text-sm text-gray-500">
                                                 {client.sessions.length}{" "}
                                                 previous sessions
+                                            </p>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {!client && (
+                                    <div className="space-y-2">
+                                        <Label>Client Status</Label>
+                                        <div className="p-3 bg-gray-50 rounded-md">
+                                            <p className="font-medium">
+                                                No client selected
+                                            </p>
+                                            <p className="text-sm text-gray-500">
+                                                You can start a session without
+                                                selecting a client
                                             </p>
                                         </div>
                                     </div>
@@ -657,6 +680,64 @@ export const SessionPage: React.FC = () => {
                 </div>
             </div>
 
+            {/* Face Recognition Permission Dialog */}
+            <Dialog
+                open={showPermissionDialog}
+                onOpenChange={setShowPermissionDialog}
+            >
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Face Recognition</DialogTitle>
+                        <DialogDescription>
+                            We've detected a face that's not in our system.
+                            Would you like to create a profile for this person?
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                        <Button
+                            variant="outline"
+                            onClick={() => setShowPermissionDialog(false)}
+                        >
+                            No, thanks
+                        </Button>
+                        <Button
+                            onClick={() => {
+                                setShowPermissionDialog(false);
+                                setShowNewClientDialog(true);
+                            }}
+                        >
+                            Yes, create profile
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Client Recognition Confirmation Dialog */}
+            <Dialog
+                open={showConfirmationDialog}
+                onOpenChange={setShowConfirmationDialog}
+            >
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Client Recognition</DialogTitle>
+                        <DialogDescription>
+                            We've recognized this person as{" "}
+                            {recognizedClient?.name} with{" "}
+                            {(recognitionConfidence * 100).toFixed(1)}%
+                            confidence. Is this correct?
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={retryRecognition}>
+                            Retry
+                        </Button>
+                        <Button onClick={confirmRecognizedClient}>
+                            Confirm
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
             {/* New Client Dialog */}
             <Dialog
                 open={showNewClientDialog}
@@ -664,10 +745,9 @@ export const SessionPage: React.FC = () => {
             >
                 <DialogContent>
                     <DialogHeader>
-                        <DialogTitle>New Client Detected</DialogTitle>
+                        <DialogTitle>Create New Client Profile</DialogTitle>
                         <DialogDescription>
-                            This person is not in our system. Would you like to
-                            create a profile for them?
+                            Enter the name for the new client profile.
                         </DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4 py-4">
@@ -686,7 +766,10 @@ export const SessionPage: React.FC = () => {
                     <DialogFooter>
                         <Button
                             variant="outline"
-                            onClick={() => setShowNewClientDialog(false)}
+                            onClick={() => {
+                                setShowNewClientDialog(false);
+                                setNewClientName("");
+                            }}
                         >
                             Cancel
                         </Button>
