@@ -43,17 +43,34 @@ router.put(
     async (req: AuthRequest, res) => {
         try {
             const { stressPoints } = req.body;
-            const session = await Session.findByIdAndUpdate(
-                req.params.id,
-                { $push: { stressPoints: { $each: stressPoints } } },
-                { new: true }
-            );
 
+            if (!Array.isArray(stressPoints)) {
+                return res
+                    .status(400)
+                    .json({ message: "Invalid stress points data" });
+            }
+
+            const session = await Session.findById(req.params.id);
             if (!session) {
                 return res.status(404).json({ message: "Session not found" });
             }
 
-            res.json(session);
+            const newQuestionIds = stressPoints
+                .filter(point => point.question)
+                .map(point => point.question)
+                .filter((id, index, arr) => arr.indexOf(id) === index); // Unique IDs
+
+            const updatedQuestions = [...new Set([...session.questions.map(String), ...newQuestionIds.map(String)])];
+            const updatedSession = await Session.findByIdAndUpdate(req.params.id, {
+                $push: { stressPoints: { $each: stressPoints } },
+                questions: updatedQuestions,
+            }, { new: true });
+
+            if (!updatedSession) {
+                return res.status(404).json({ message: "Session not found" });
+            }
+
+            res.json(updatedSession);
         } catch (error) {
             console.error(error);
             res.status(500).json({ message: "Server error" });
@@ -86,7 +103,7 @@ router.put("/:id/summary", authMiddleware, async (req: AuthRequest, res) => {
 router.get("/:id", authMiddleware, async (req: AuthRequest, res) => {
     try {
         const session = await Session.findById(req.params.id)
-            .populate("client") 
+            .populate("client")
             .populate("counselor")
             .populate("questions");
 
@@ -103,27 +120,31 @@ router.get("/:id", authMiddleware, async (req: AuthRequest, res) => {
     }
 });
 
-router.post('/:id/generate-insights', authMiddleware, async (req: AuthRequest, res) => {
-    try {
-        const { id } = req.params;
+router.post(
+    "/:id/generate-insights",
+    authMiddleware,
+    async (req: AuthRequest, res) => {
+        try {
+            const { id } = req.params;
 
-        const session = await Session.findById(id)
-            .populate("client")
-            .populate("questions");
+            const session = await Session.findById(id)
+                .populate("client")
+                .populate("questions");
 
-        if (!session) {
-            return res.status(404).json({ message: "Session not found" });
+            if (!session) {
+                return res.status(404).json({ message: "Session not found" });
+            }
+
+            const suggestions = await generateSessionInsights(session);
+            session.suggestions = suggestions;
+            await session.save();
+
+            res.json({ suggestions });
+        } catch (error) {
+            console.error("Error generating insights:", error);
+            res.status(500).json({ message: "Server error" });
         }
-
-        const suggestions = await generateSessionInsights(session);
-        session.suggestions = suggestions;
-        await session.save();
-
-        res.json({ suggestions });
-    } catch (error) {
-        console.error("Error generating insights:", error);
-        res.status(500).json({ message: "Server error" });
     }
-});
+);
 
 export default router;

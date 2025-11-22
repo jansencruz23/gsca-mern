@@ -27,6 +27,7 @@ import {
     Legend,
     ResponsiveContainer,
     PieChart,
+    ReferenceLine,
     Pie,
     Cell,
 } from "recharts";
@@ -105,6 +106,12 @@ export const AnalyticsPage: React.FC = () => {
         });
     };
 
+    const stateMap = {
+        calm: 0,
+        vigilance: 1,
+        tense: 2,
+    };
+
     const processStressData = () => {
         if (!session || !session.stressPoints.length) return [];
 
@@ -113,9 +120,97 @@ export const AnalyticsPage: React.FC = () => {
         return session.stressPoints.map((point) => ({
             time: formatTimestamp(point.timestamp),
             timestamp: point.timestamp,
-            state: point.state,
+            state: stateMap[point.state],
             question: point.question ? "Question Asked" : null,
         }));
+    };
+
+    const POSTURE_WEIGHT = 0.25;
+    const FIDGETING_WEIGHT = 0.5;
+    const MOVEMENT_WEIGHT = 0.25;
+
+    const processDetailedStressData = () => {
+        if (!session || !session.stressPoints.length)
+            return {
+                chartData: [],
+                questionMarkers: [],
+            };
+
+        const questionMap = new Map();
+        if (session.questions) {
+            (Array.isArray(session.questions) ? session.questions : []).forEach(
+                (q: any) => {
+                    questionMap.set(q._id.toString(), q.text);
+                }
+            );
+        }
+
+        const chartData = session.stressPoints.map((point) => {
+            const posture = point.details?.posture || 0; // higher is better posture (lower stress)
+            const fidgeting = point.details?.fidgeting || 0; // higher is more fidgeting (higher stress)
+            const movement = point.details?.movement || 0; // higher is more movement (higher stress)
+
+            // Compute smooth overall stress (0-100)
+            // Weighting: posture reduces stress, fidgeting & movement increase stress
+            const overallStress =
+                ((1 - posture) * POSTURE_WEIGHT +
+                    fidgeting * FIDGETING_WEIGHT +
+                    movement * MOVEMENT_WEIGHT) *
+                100;
+
+            return {
+                time: formatTimestamp(point.timestamp),
+                timestamp: point.timestamp,
+                overallStress,
+                posture: posture * 100,
+                fidgeting: fidgeting * 100,
+                movement: movement * 100,
+            };
+        });
+
+        const questionMarkers = session.stressPoints
+            .filter((point) => point.question) // Only keep points that have a question
+            .map((point) => {
+                // Find the full question object from our map
+                const relatedQuestion = questionMap.get(
+                    point.question?.toString()
+                );
+
+                return {
+                    timestamp: point.timestamp,
+                    questionText: relatedQuestion?.text || "Unknown Question",
+                    questionId: relatedQuestion?._id || "Unknown ID", 
+                };
+            });
+
+        console.log("Session questions:", session);
+        return { chartData, questionMarkers };
+    };
+
+    const calculateAverageScores = () => {
+        if (!session || !session.stressPoints.length) {
+            return { avgPosture: 0, totalFidgeting: 0 };
+        }
+
+        const validPoints = session.stressPoints.filter((p) => p.details);
+        const totalPosture = validPoints.reduce(
+            (sum, p) => sum + (p.details?.posture || 0),
+            0
+        );
+
+        const totalFidgetingCount = validPoints.filter(
+            (p) => (p.details?.fidgeting || 0) > 0
+        ).length;
+
+        console.log("Total Fidgeting Count:", totalFidgetingCount);
+        console.log("Valid Points Length:", validPoints.length);
+
+        const totalFidgetingPercentage =
+            (totalFidgetingCount / validPoints.length) * 100;
+        return {
+            avgPosture: (totalPosture / validPoints.length) * 100,
+            totalFidgeting: totalFidgetingPercentage,
+        };
     };
 
     const calculateStressDistribution = () => {
@@ -155,8 +250,10 @@ export const AnalyticsPage: React.FC = () => {
     }
 
     const stressData = processStressData();
+    const { chartData, questionMarkers } = processDetailedStressData();
     const stressDistribution = calculateStressDistribution();
     const totalPoints = session.stressPoints.length;
+    const { avgPosture, totalFidgeting } = calculateAverageScores();
 
     return (
         <div className="container mx-auto px-4 py-8">
@@ -239,7 +336,7 @@ export const AnalyticsPage: React.FC = () => {
             </Card>
 
             {/* KPI Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                 <Card>
                     <CardHeader className="pb-2">
                         <CardTitle className="text-sm font-medium">
@@ -324,6 +421,38 @@ export const AnalyticsPage: React.FC = () => {
                         </p>
                     </CardContent>
                 </Card>
+                {/* NEW: Average Posture Score KPI */}
+                <Card>
+                    <CardHeader className="pb-2">
+                        <CardTitle className="text-sm font-medium">
+                            Avg. Posture Score
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold text-blue-600">
+                            {avgPosture.toFixed(1)}%
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                            Higher is better posture
+                        </p>
+                    </CardContent>
+                </Card>
+                {/* NEW: Average Fidgeting Score KPI */}
+                <Card>
+                    <CardHeader className="pb-2">
+                        <CardTitle className="text-sm font-medium">
+                            Fidgeting Percentage
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold text-purple-600">
+                            {totalFidgeting.toFixed(1)}%
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                            Lower is less fidgeting
+                        </p>
+                    </CardContent>
+                </Card>
                 <Card>
                     <CardHeader className="pb-2">
                         <CardTitle className="text-sm font-medium">
@@ -349,8 +478,11 @@ export const AnalyticsPage: React.FC = () => {
 
             {/* Charts */}
             <Tabs defaultValue="timeline" className="mb-6">
-                <TabsList className="grid w-full grid-cols-2">
+                <TabsList className="grid w-full grid-cols-3">
                     <TabsTrigger value="timeline">Stress Timeline</TabsTrigger>
+                    <TabsTrigger value="detailed">
+                        Detailed Analysis
+                    </TabsTrigger>
                     <TabsTrigger value="distribution">
                         Stress Distribution
                     </TabsTrigger>
@@ -413,7 +545,93 @@ export const AnalyticsPage: React.FC = () => {
                         </CardContent>
                     </Card>
                 </TabsContent>
-
+                {/* NEW: TabsContent for detailed analysis */}
+                <TabsContent value="detailed" className="space-y-4">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>
+                                Detailed Stress Metrics Over Time
+                            </CardTitle>
+                            <CardDescription>
+                                Visualization of overall stress and fidgeting
+                                scores throughout the session
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            {chartData.length > 0 ? (
+                                <ResponsiveContainer width="100%" height={300}>
+                                    <LineChart data={chartData}>
+                                        <CartesianGrid strokeDasharray="3 3" />
+                                        <XAxis dataKey="time" />
+                                        <YAxis
+                                            domain={[0, 100]} // Scores normalized to 0-100
+                                            ticks={[0, 25, 50, 75, 100]}
+                                        />
+                                        <Tooltip
+                                            formatter={(
+                                                value: any,
+                                                name: any
+                                            ) => {
+                                                if (name === "overallStress")
+                                                    return [
+                                                        `Stress: ${value}`,
+                                                        "",
+                                                    ];
+                                                if (name === "fidgeting")
+                                                    return [
+                                                        `Fidgeting: ${value}%`,
+                                                        "",
+                                                    ];
+                                                return [value, name];
+                                            }}
+                                        />
+                                        <Legend />
+                                        <Line
+                                            type="monotone"
+                                            dataKey="overallStress"
+                                            stroke="#3b82f6" // Blue
+                                            strokeWidth={2}
+                                            dot={false}
+                                            name="Overall Stress"
+                                        />
+                                        <Line
+                                            type="monotone"
+                                            dataKey="fidgeting"
+                                            stroke="#a855f7" // Purple
+                                            strokeWidth={2}
+                                            dot={false}
+                                            name="Fidgeting Score"
+                                        />
+                                        {/* Render a ReferenceLine for each question asked */}
+                                        {questionMarkers.map(
+                                            (marker, index) => (
+                                                <ReferenceLine
+                                                    key={index}
+                                                    x={formatTimestamp(
+                                                        marker.timestamp
+                                                    )}
+                                                    stroke="#ef4444" // Red color for visibility
+                                                    strokeDasharray="5 5"
+                                                    label={{
+                                                        value: marker.questionText,
+                                                        position: "insideLeft",
+                                                        offset: 10,
+                                                        fill: "#ef4444",
+                                                        fontSize: 12,
+                                                    }}
+                                                />
+                                            )
+                                        )}
+                                    </LineChart>
+                                </ResponsiveContainer>
+                            ) : (
+                                <div className="text-center py-8 text-gray-500">
+                                    No detailed stress data available
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
+                </TabsContent>
                 <TabsContent value="distribution" className="space-y-4">
                     <Card>
                         <CardHeader>

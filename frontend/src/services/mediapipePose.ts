@@ -413,6 +413,8 @@ export class MediapipePoseService {
 
         // If there's significant movement in key points, increment fidgeting count
         const avgMovement = validPoints > 0 ? totalMovement / validPoints : 0;
+
+        /*
         if (avgMovement > 0.02) {
             this.fidgetingCount++;
         }
@@ -421,9 +423,13 @@ export class MediapipePoseService {
         if (this.movementHistory.length % 30 === 0) {
             this.fidgetingCount = 0;
         }
+        */
 
         // Return normalized fidgeting score (0-1, higher is more fidgeting)
-        return Math.min(this.fidgetingCount / 30, 1);
+        //return Math.min(this.fidgetingCount / 30, 1);
+
+        const fidgetingScore = Math.min(avgMovement / 0.05, 1); // 0.05 = max expected movement per frame
+        return fidgetingScore;
     }
 
     private calculateLegBouncingScore(landmarks: any[]): number {
@@ -439,6 +445,7 @@ export class MediapipePoseService {
             return 0;
         }
 
+        /*
         const currentTime = Date.now();
         let currentDirection: "up" | "down" | null = null;
 
@@ -482,5 +489,27 @@ export class MediapipePoseService {
 
         const bounceCount = Math.floor(directionChanges / 2);
         return Math.min(bounceCount / 2, 1);
+        */
+
+        // Calculate movement since last frame
+        let leftDy = 0;
+        let rightDy = 0;
+
+        if (this.lastKneePositions.left && this.lastKneePositions.right) {
+            leftDy = Math.abs(leftKnee.y - this.lastKneePositions.left.y);
+            rightDy = Math.abs(rightKnee.y - this.lastKneePositions.right.y);
+        }
+
+        // Update last positions
+        this.lastKneePositions.left = { x: leftKnee.x, y: leftKnee.y };
+        this.lastKneePositions.right = { x: rightKnee.x, y: rightKnee.y };
+
+        // Use the largest knee movement
+        const maxMovement = Math.max(leftDy, rightDy);
+
+        // Normalize to 0-1 based on expected max movement per frame
+        const fidgetingScore = Math.min(maxMovement / 0.03, 1); // 0.03 is an example max expected knee movement
+
+        return fidgetingScore;
     }
 }

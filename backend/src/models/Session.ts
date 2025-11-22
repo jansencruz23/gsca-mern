@@ -3,7 +3,15 @@ import mongoose, { mongo } from "mongoose";
 const stressPointSchema = new mongoose.Schema({ 
     timestamp: { type: Number, required: true },
     state: { type: String, enum: ["calm", "vigilance", "tense"], required: true },
-    question: { type: mongoose.Schema.Types.ObjectId, ref: 'Question' }
+    question: { type: mongoose.Schema.Types.ObjectId, ref: 'Question' },
+    confidence: { type: Number, default: null },
+    details: {
+        posture: { type: Number, default: null },
+        movement: { type: Number, default: null },
+        fidgeting: { type: Number, default: null },
+        handFidgeting: { type: Number, default: null },
+        legBouncing: { type: Number, default: null },
+    }
 });
 
 const sessionSchema = new mongoose.Schema({ 

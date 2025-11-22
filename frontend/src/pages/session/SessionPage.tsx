@@ -27,7 +27,7 @@ import {
     getFaceSnapshot,
 } from "../../services/faceRecognition";
 import type { Client } from "../../types/client";
-import type { Session } from "../../types/session";
+import type { Session, StressPoint } from "../../types/session";
 import type { Question, UsedQuestion } from "../../types/question";
 import {
     Camera,
@@ -153,13 +153,13 @@ export const SessionPage: React.FC = () => {
                                         sessionStartTimeRef.current;
                                     if (
                                         currentTime -
-                                            lastStressUpdateRef.current >=
-                                        2000
+                                            lastStressUpdateRef.current >
+                                        1000
                                     ) {
                                         lastStressUpdateRef.current =
                                             currentTime;
 
-                                        const newStressPoint = {
+                                        const newStressPoint: StressPoint = {
                                             timestamp: currentTime,
                                             state: stressAnalysis.state,
                                             confidence:
