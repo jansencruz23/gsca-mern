@@ -25,7 +25,13 @@ export interface Session {
     stressPoints: StressPoint[];
     questions: string[] | Question[];
     summary?: string;
-    suggestions?: string;
+    suggestions?: {
+        summary: { type: String, required: false },
+        sensitiveTopics: [{ type: String }],
+        positivePatterns: [{ type: String }],
+        recommendations: [{ type: String }],
+        nextSessionFocus: [{ type: String }]
+    };
 }
 
 export interface SessionForm {

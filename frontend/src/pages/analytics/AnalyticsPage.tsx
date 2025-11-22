@@ -39,7 +39,9 @@ import {
     TrendingUp,
     AlertTriangle,
     BarChart3,
+    AlertCircle,
 } from "lucide-react";
+import { SuggestionsSkeleton } from "@/components/analytics/SuggestionsSkeleton";
 
 export const AnalyticsPage: React.FC = () => {
     const { id } = useParams<{ id: string }>();
@@ -54,6 +56,11 @@ export const AnalyticsPage: React.FC = () => {
     const [isLoadingDetails, setIsLoadingDetails] = useState(false);
     const [isGeneratingSuggestions, setIsGeneratingSuggestions] =
         useState(false);
+
+    const [isGeneratingInitialSuggestions, setIsGeneratingInitialSuggestions] =
+        useState(false);
+    const [parsedSuggestions, setParsedSuggestions] = useState<any>(null);
+    const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
         const fetchAllSessions = async () => {
@@ -74,8 +81,75 @@ export const AnalyticsPage: React.FC = () => {
         if (!selectedSession) return;
 
         setIsLoadingSessions(true);
+        setParsedSuggestions(null);
         setIsLoadingDetails(false);
     }, [selectedSession]);
+
+    useEffect(() => {
+        if (!selectedSession || !selectedSession.suggestions) return;
+
+        setParsedSuggestions(selectedSession.suggestions);
+    }, [selectedSession]);
+
+    useEffect(() => {
+        if (!id) {
+            setSelectedSession(null);
+            setParsedSuggestions(null);
+            setIsLoadingDetails(false);
+            setError(null);
+            return;
+        }
+
+        const fetchSessionDetails = async () => {
+            setIsLoadingDetails(true);
+            setError(null); 
+
+            try {
+                const response = await sessionsAPI.getById(id);
+                const sessionData = response.data;
+
+                setSelectedSession(sessionData);
+
+                if (
+                    sessionData.suggestions &&
+                    typeof sessionData.suggestions === "object"
+                ) {
+                    // It's already an object, no need to parse. Just set it directly.
+                    setParsedSuggestions(sessionData.suggestions);
+                } else {
+                    // If suggestions are a string (old format) or don't exist, generate them
+                    if (!sessionData.suggestions) {
+                        setIsGeneratingInitialSuggestions(true);
+                        try {
+                            const insightsResponse =
+                                await sessionsAPI.generateInsights(
+                                    sessionData._id
+                                );
+                            const newSuggestions =
+                                insightsResponse.data.suggestions;
+                            // The response from our new backend endpoint is already an object
+                            setParsedSuggestions(newSuggestions);
+                        } catch (error) {
+                            console.error(
+                                "Error generating initial suggestions:",
+                                error
+                            );
+                            setError("Failed to generate suggestions. Please try again.");
+                        } finally {
+                            setIsGeneratingInitialSuggestions(false);
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error("Error fetching session details:", error);
+                setError("Failed to load session details. Please try again.");
+            } finally {
+                setIsLoadingDetails(false);
+            }
+        };
+
+        fetchSessionDetails();
+    }, [id]);
 
     const handleSelectSession = (session: Session) => {
         setSelectedSession(session);
@@ -106,18 +180,16 @@ export const AnalyticsPage: React.FC = () => {
         if (!selectedSession) return;
 
         setIsGeneratingSuggestions(true);
+        setError(null);
 
         try {
             const response = await sessionsAPI.generateInsights(
                 selectedSession._id
             );
-
-            setSelectedSession({
-                ...selectedSession,
-                suggestions: response.data.suggestions,
-            });
+            setParsedSuggestions(response.data.suggestions);
         } catch (error) {
             console.error("Error generating suggestions:", error);
+            setError("Failed to regenerate suggestions. Please try again.");
         } finally {
             setIsGeneratingSuggestions(false);
         }
@@ -152,8 +224,6 @@ export const AnalyticsPage: React.FC = () => {
     const processStressData = () => {
         if (!selectedSession || !selectedSession.stressPoints.length) return [];
 
-        console.log("Processing stress data:", selectedSession.stressPoints);
-
         return selectedSession.stressPoints.map((point) => ({
             time: formatTimestamp(point.timestamp),
             timestamp: point.timestamp,
@@ -180,7 +250,6 @@ export const AnalyticsPage: React.FC = () => {
                 : []
             ).forEach((q: any) => {
                 // Check if q._id exists before using it as a key
-                console.log("Question in session:", q);
                 if (q._id) {
                     questionMap.set(q._id.toString(), {
                         text: q.text,
@@ -199,7 +268,7 @@ export const AnalyticsPage: React.FC = () => {
                 }
             });
         }
-        
+
         const chartData = selectedSession.stressPoints.map((point) => {
             const posture = point.details?.posture || 0; // higher is better posture (lower stress)
             const fidgeting = point.details?.fidgeting || 0; // higher is more fidgeting (higher stress)
@@ -221,8 +290,6 @@ export const AnalyticsPage: React.FC = () => {
                 };
             }
 
-            console.log("QQQQ:", questionInfo);
-
             return {
                 time: formatTimestamp(point.timestamp),
                 timestamp: point.timestamp,
@@ -233,8 +300,6 @@ export const AnalyticsPage: React.FC = () => {
                 questionMarker: questionInfo ? overallStress : null,
             };
         });
-
-        console.log('Question Map:', questionMap);
 
         const questionMarkers = selectedSession.stressPoints
             .filter((point) => point.question)
@@ -248,7 +313,6 @@ export const AnalyticsPage: React.FC = () => {
                     "Uncategorized",
             }));
 
-        console.log("Session questions:", selectedSession);
         return { chartData, questionMarkers };
     };
 
@@ -268,9 +332,6 @@ export const AnalyticsPage: React.FC = () => {
         const totalFidgetingCount = validPoints.filter(
             (p) => (p.details?.fidgeting || 0) > 0
         ).length;
-
-        console.log("Total Fidgeting Count:", totalFidgetingCount);
-        console.log("Valid Points Length:", validPoints.length);
 
         const totalFidgetingPercentage =
             (totalFidgetingCount / validPoints.length) * 100;
@@ -313,6 +374,177 @@ export const AnalyticsPage: React.FC = () => {
             return "0:00";
         const lastPoint = session.stressPoints[session.stressPoints.length - 1];
         return formatTimestamp(lastPoint.timestamp);
+    };
+
+    const renderSuggestions = () => {
+        // Show skeleton while generating initial suggestions
+        if (isGeneratingInitialSuggestions) {
+            return <SuggestionsSkeleton />;
+        }
+
+        // Show error state if there's an error
+        if (error) {
+            return (
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="flex items-center justify-between">
+                            <span className="flex items-center gap-2">
+                                <AlertCircle className="h-5 w-5 text-red-500" />
+                                AI Insights Error
+                            </span>
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent className="text-center py-8">
+                        <p className="text-red-500">{error}</p>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={generateSuggestions}
+                            className="mt-4"
+                        >
+                            Try Again
+                        </Button>
+                    </CardContent>
+                </Card>
+            );
+        }
+
+        // Show empty state if no suggestions
+        if (!parsedSuggestions || typeof parsedSuggestions !== "object") {
+            return (
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="flex items-center justify-between">
+                            <span className="flex items-center gap-2">
+                                <TrendingUp className="h-5 w-5" />
+                                AI-Generated Insights
+                            </span>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={generateSuggestions}
+                            >
+                                Generate Suggestions
+                            </Button>
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent className="text-center py-8">
+                        <AlertCircle className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+                        <p className="text-gray-500">
+                            No insights available. Click "Generate Suggestions"
+                            to analyze this session.
+                        </p>
+                    </CardContent>
+                </Card>
+            );
+        }
+
+        // Show suggestions if available
+        return (
+            <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center justify-between">
+                        <span className="flex items-center gap-2">
+                            <TrendingUp className="h-5 w-5" />
+                            AI-Generated Insights
+                        </span>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={generateSuggestions}
+                            disabled={isGeneratingSuggestions}
+                        >
+                            {isGeneratingSuggestions
+                                ? "Regenerating..."
+                                : "Regenerate Suggestions"}
+                        </Button>
+                    </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                    {/* Summary */}
+                    {parsedSuggestions && parsedSuggestions.summary && (
+                        <div>
+                            <h3 className="text-lg font-semibold mb-2">
+                                Summary
+                            </h3>
+                            <p className="text-sm text-gray-700">
+                                {parsedSuggestions.summary}
+                            </p>
+                        </div>
+                    )}
+
+                    {/* Sensitive Topics */}
+                    {parsedSuggestions && parsedSuggestions.sensitiveTopics &&
+                        Array.isArray(parsedSuggestions.sensitiveTopics) &&
+                        parsedSuggestions.sensitiveTopics.length > 0 && (
+                            <div>
+                                <h3 className="text-lg font-semibold mb-2">
+                                    Potential Sensitive Topics
+                                </h3>
+                                <ul className="list-disc list-inside space-y-1 text-sm text-gray-700">
+                                    {parsedSuggestions.sensitiveTopics.map(
+                                        (topic: string, index: number) => (
+                                            <li key={index}>{topic}</li>
+                                        )
+                                    )}
+                                </ul>
+                            </div>
+                        )}
+
+                    {/* Positive Patterns */}
+                    { parsedSuggestions && parsedSuggestions.positivePatterns &&
+                        Array.isArray(parsedSuggestions.positivePatterns) &&
+                        parsedSuggestions.positivePatterns.length > 0 && (
+                            <div>
+                                <h3 className="text-lg font-semibold mb-2">
+                                    Positive Engagement Patterns
+                                </h3>
+                                <ul className="list-disc list-inside space-y-1 text-sm text-gray-700">
+                                    {parsedSuggestions.positivePatterns.map(
+                                        (pattern: string, index: number) => (
+                                            <li key={index}>{pattern}</li>
+                                        )
+                                    )}
+                                </ul>
+                            </div>
+                        )}
+
+                    {/* Recommendations */}
+                    {parsedSuggestions && parsedSuggestions.recommendations &&
+                        parsedSuggestions.recommendations.length > 0 && (
+                            <div>
+                                <h3 className="text-lg font-semibold mb-2">
+                                    Recommendations
+                                </h3>
+                                <ol className="list-decimal list-inside space-y-1 text-sm text-gray-700">
+                                    {parsedSuggestions.recommendations.map(
+                                        (rec: string, index: number) => (
+                                            <li key={index}>{rec}</li>
+                                        )
+                                    )}
+                                </ol>
+                            </div>
+                        )}
+
+                    {/* Next Session Focus */}
+                    {parsedSuggestions && parsedSuggestions.nextSessionFocus &&
+                        parsedSuggestions.nextSessionFocus.length > 0 && (
+                            <div>
+                                <h3 className="text-lg font-semibold mb-2">
+                                    Next Session Focus
+                                </h3>
+                                <ul className="list-disc list-inside space-y-1 text-sm text-gray-700">
+                                    {parsedSuggestions.nextSessionFocus.map(
+                                        (focus: string, index: number) => (
+                                            <li key={index}>{focus}</li>
+                                        )
+                                    )}
+                                </ul>
+                            </div>
+                        )}
+                </CardContent>
+            </Card>
+        );
     };
 
     const renderSessionList = () => {
@@ -967,47 +1199,8 @@ export const AnalyticsPage: React.FC = () => {
                     </TabsContent>
                 </Tabs>
 
-                {/* AI Suggestions */}
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="flex items-center justify-between">
-                            <span className="flex items-center gap-2">
-                                <TrendingUp className="h-5 w-5" />
-                                AI-Generated Insights
-                            </span>
-                            {!selectedSession.suggestions && (
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={generateSuggestions}
-                                    disabled={isGeneratingSuggestions}
-                                >
-                                    {isGeneratingSuggestions
-                                        ? "Generating..."
-                                        : "Generate Suggestions"}
-                                </Button>
-                            )}
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        {selectedSession.suggestions ? (
-                            <div className="prose prose-sm max-w-none">
-                                <pre className="whitespace-pre-wrap font-sans text-sm">
-                                    {selectedSession.suggestions}
-                                </pre>
-                            </div>
-                        ) : (
-                            <div className="text-center py-8 text-gray-500">
-                                <AlertTriangle className="mx-auto h-12 w-12 text-gray-400 mb-2" />
-                                <p>No insights generated yet</p>
-                                <p className="text-sm">
-                                    Click "Generate Suggestions" to get
-                                    AI-powered insights based on this session.
-                                </p>
-                            </div>
-                        )}
-                    </CardContent>
-                </Card>
+                {/* AI Suggestions - only render once */}
+                {renderSuggestions()}
             </div>
         );
     };
