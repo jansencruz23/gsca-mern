@@ -292,37 +292,6 @@ export const AnalyticsPage: React.FC = () => {
     return { chartData, questionMarkers };
   };
 
-  const calculateAverageScores = () => {
-    const defaultScores = { avgPosture: 0, totalFidgeting: 0 };
-
-    if (!selectedSession || !selectedSession.stressPoints?.length) {
-      return defaultScores;
-    }
-
-    const validPoints = selectedSession.stressPoints.filter((p) => p.details);
-
-    if (validPoints.length === 0) {
-      return defaultScores;
-    }
-
-    const totalPosture = validPoints.reduce(
-      (sum, p) => sum + (p.details?.posture || 0),
-      0
-    );
-
-    const totalFidgetingCount = validPoints.filter(
-      (p) => (p.details?.fidgeting || 0) > 0
-    ).length;
-
-    const totalFidgetingPercentage =
-      (totalFidgetingCount / validPoints.length) * 100;
-
-    return {
-      avgPosture: (totalPosture / validPoints.length) * 100,
-      totalFidgeting: totalFidgetingPercentage,
-    };
-  };
-
   const calculateStressDistribution = () => {
     if (!selectedSession || !selectedSession.stressPoints?.length) return [];
 
@@ -710,9 +679,9 @@ export const AnalyticsPage: React.FC = () => {
     const stressDistribution = calculateStressDistribution();
     const totalPoints = selectedSession.stressPoints?.length || 0;
 
-    const averageScores = calculateAverageScores();
-    const avgPosture = averageScores?.avgPosture ?? 0;
-    const totalFidgeting = averageScores?.totalFidgeting ?? 0;
+    //const averageScores = calculateAverageScores();
+    //const avgPosture = averageScores?.avgPosture ?? 0;
+    //const totalFidgeting = averageScores?.totalFidgeting ?? 0;
 
     return (
       <div className="min-h-screen bg-purple-50">
