@@ -10,8 +10,6 @@ import authRoutes from "./routes/auth.ts";
 
 dotenv.config();
 
-console.log("MONGO =", process.env.MONGODB_URI);
-
 const allowedOrigins = [
     "http://localhost:3000",
     "https://gsca-mern-frontend.vercel.app",

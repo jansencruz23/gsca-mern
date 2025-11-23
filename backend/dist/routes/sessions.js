@@ -2,17 +2,39 @@ import express from "express";
 import { Session } from "../models/Session.js";
 import { Client } from "../models/Client.js";
 import authMiddleware from "../middleware/auth.js";
+import { generateSessionInsights } from "../services/geminiService.js";
+import dotenv from "dotenv";
+dotenv.config();
 const router = express.Router();
+router.get("/", authMiddleware, async (req, res) => {
+    try {
+        const sessions = await Session.find({ counselor: req.user.id })
+            .populate("client")
+            .populate("counselor")
+            .populate("questions")
+            .sort({ date: -1 });
+        res.json(sessions);
+    }
+    catch (error) {
+        console.error('Error fetching sessions:', error);
+        res.status(500).json({ message: "Server error" });
+    }
+});
 // Create a new session
 router.post("/", authMiddleware, async (req, res) => {
     try {
         const { clientId, description } = req.body;
-        const client = await Client.findById(clientId);
+        let newClientId = clientId;
+        let client = null;
+        if (!clientId) {
+            newClientId = process.env.UNKNOWN_CLIENT_ID || '';
+        }
+        client = await Client.findById(newClientId);
         if (!client) {
             return res.status(404).json({ message: "Client not found" });
         }
         const session = new Session({
-            client: clientId,
+            client: newClientId,
             counselor: req.user.id,
             description,
         });
@@ -31,11 +53,28 @@ router.post("/", authMiddleware, async (req, res) => {
 router.put("/:id/stress-points", authMiddleware, async (req, res) => {
     try {
         const { stressPoints } = req.body;
-        const session = await Session.findByIdAndUpdate(req.params.id, { $push: { stressPoints: { $each: stressPoints } } }, { new: true });
+        if (!Array.isArray(stressPoints)) {
+            return res
+                .status(400)
+                .json({ message: "Invalid stress points data" });
+        }
+        const session = await Session.findById(req.params.id);
         if (!session) {
             return res.status(404).json({ message: "Session not found" });
         }
-        res.json(session);
+        const newQuestionIds = stressPoints
+            .filter(point => point.question)
+            .map(point => point.question)
+            .filter((id, index, arr) => arr.indexOf(id) === index); // Unique IDs
+        const updatedQuestions = [...new Set([...session.questions.map(String), ...newQuestionIds.map(String)])];
+        const updatedSession = await Session.findByIdAndUpdate(req.params.id, {
+            $push: { stressPoints: { $each: stressPoints } },
+            questions: updatedQuestions,
+        }, { new: true });
+        if (!updatedSession) {
+            return res.status(404).json({ message: "Session not found" });
+        }
+        res.json(updatedSession);
     }
     catch (error) {
         console.error(error);
@@ -64,6 +103,60 @@ router.get("/:id", authMiddleware, async (req, res) => {
             .populate("client")
             .populate("counselor")
             .populate("questions");
+        if (!session) {
+            return res.status(404).json({ message: "Session not found" });
+        }
+        res.json(session);
+    }
+    catch (error) {
+        console.error(error);
+        res.status(500).json({ message: "Server error" });
+    }
+});
+router.post("/:id/generate-insights", authMiddleware, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const session = await Session.findById(id)
+            .populate("client")
+            .populate("questions");
+        if (!session) {
+            return res.status(404).json({ message: "Session not found" });
+        }
+        const suggestions = await generateSessionInsights(session);
+        session.suggestions = suggestions;
+        await session.save();
+        res.json({ suggestions });
+    }
+    catch (error) {
+        console.error("Error generating insights:", error);
+        res.status(500).json({ message: "Server error" });
+    }
+});
+router.get("/client/:clientId", authMiddleware, async (req, res) => {
+    try {
+        const { clientId } = req.params;
+        const sessions = await Session.find({
+            counselor: req.user.id,
+            client: clientId
+        })
+            .populate("client")
+            .populate("counselor")
+            .populate("questions")
+            .sort({ date: -1 });
+        if (sessions.length === 0) {
+            return res.status(404).json({ message: "No sessions found for this client" });
+        }
+        res.json(sessions);
+    }
+    catch (error) {
+        console.error('Error fetching sessions for client:', error);
+        res.status(500).json({ message: "Server error" });
+    }
+});
+router.put('/:id/description', authMiddleware, async (req, res) => {
+    try {
+        const { description } = req.body;
+        const session = await Session.findByIdAndUpdate(req.params.id, { description }, { new: true });
         if (!session) {
             return res.status(404).json({ message: "Session not found" });
         }

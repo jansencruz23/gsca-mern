@@ -109,6 +109,44 @@ router.post("/", authMiddleware, async (req, res) => {
         res.status(500).json({ message: "Server error" });
     }
 });
+// Update client details
+router.put("/:id", authMiddleware, async (req, res) => {
+    try {
+        const { name } = req.body;
+        console.log("Updating client:", req.params.id, "with name:", name);
+        const client = await Client.findById(req.params.id);
+        if (!client) {
+            return res.status(404).json({ message: "Client not found" });
+        }
+        client.name = name || client.name;
+        await client.save();
+        res.json(client);
+    }
+    catch (error) {
+        console.error(error);
+        res.status(500).json({ message: "Server error" });
+    }
+});
+// Update client's face descriptor
+router.put("/:id/face-descriptor", authMiddleware, async (req, res) => {
+    try {
+        const { faceDescriptor, snapshot } = req.body;
+        const client = await Client.findById(req.params.id);
+        if (!client) {
+            return res.status(404).json({ message: "Client not found" });
+        }
+        client.faceDescriptors.push({
+            descriptor: faceDescriptor,
+            snapshot,
+        });
+        await client.save();
+        res.json(client);
+    }
+    catch (error) {
+        console.error(error);
+        res.status(500).json({ message: "Server error" });
+    }
+});
 function calculateEuclideanDistance(descriptor1, descriptor2) {
     if (descriptor1.length !== descriptor2.length) {
         return Infinity;

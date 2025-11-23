@@ -2,6 +2,7 @@ import express from "express";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { Counselor } from "../models/Counselor.js";
+import authMiddleware, {} from "../middleware/auth.js";
 const router = express.Router();
 // Counselor Registration
 router.post("/register", async (req, res) => {
@@ -68,6 +69,25 @@ router.post("/login", async (req, res) => {
                 lastName: counselor.lastName,
                 email: counselor.email,
             },
+        });
+    }
+    catch (error) {
+        console.error(error);
+        res.status(500).json({ message: "Server error" });
+    }
+});
+router.get('/me', authMiddleware, async (req, res) => {
+    try {
+        const counselor = await Counselor.findById(req.user.id).select('-password');
+        if (!counselor) {
+            return res.status(404).json({ message: "Counselor not found" });
+        }
+        res.json({
+            id: counselor._id,
+            username: counselor.username,
+            firstName: counselor.firstName,
+            lastName: counselor.lastName,
+            email: counselor.email,
         });
     }
     catch (error) {

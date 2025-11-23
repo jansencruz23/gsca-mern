@@ -5,7 +5,7 @@ const router = express.Router();
 // Get all questions
 router.get("/", authMiddleware, async (req, res) => {
     try {
-        const questions = await Question.find({ councelor: req.user.id });
+        const questions = await Question.find({ counselor: req.user.id });
         res.json(questions);
     }
     catch (error) {
@@ -20,10 +20,43 @@ router.post("/", authMiddleware, async (req, res) => {
         const question = new Question({
             text,
             category,
-            councelor: req.user.id,
+            counselor: req.user.id,
         });
         await question.save();
         res.status(201).json(question);
+    }
+    catch (error) {
+        console.error(error);
+        res.status(500).json({ message: "Server error" });
+    }
+});
+// Update a question
+router.put('/:id', authMiddleware, async (req, res) => {
+    try {
+        const { text, category } = req.body;
+        const question = await Question.findOne({ _id: req.params.id, counselor: req.user.id });
+        if (!question) {
+            return res.status(404).json({ message: "'Question not found or you do not have permission to edit it" });
+        }
+        question.text = text;
+        question.category = category;
+        await question.save();
+        res.json(question);
+    }
+    catch (error) {
+        console.error(error);
+        res.status(500).json({ message: "Server error" });
+    }
+});
+// Delete a question
+router.delete('/:id', authMiddleware, async (req, res) => {
+    try {
+        const question = await Question.findOne({ _id: req.params.id, counselor: req.user.id });
+        if (!question) {
+            return res.status(404).json({ message: "Question not found or you do not have permission to delete it" });
+        }
+        await Question.findByIdAndDelete(req.params.id);
+        res.json({ message: "Question deleted successfully" });
     }
     catch (error) {
         console.error(error);
