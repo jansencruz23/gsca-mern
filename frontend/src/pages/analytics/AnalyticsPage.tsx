@@ -29,18 +29,12 @@ import {
   PieChart,
   Pie,
   Cell,
-  Dot,
 } from "recharts";
 import {
   ArrowLeft,
-  Calendar,
   User,
-  Clock,
-  TrendingUp,
   BarChart3,
   AlertCircle,
-  Loader2,
-  Lightbulb,
   Target,
   CheckCircle,
   BookOpen,
@@ -56,7 +50,7 @@ export const AnalyticsPage: React.FC = () => {
 
   const [selectedSession, setSelectedSession] = useState<Session | null>(null);
   const [isLoadingDetails, setIsLoadingDetails] = useState(false);
-  const [isGeneratingSuggestions, setIsGeneratingSuggestions] = useState(false);
+  const [, setIsGeneratingSuggestions] = useState(false);
 
   const [isGeneratingInitialSuggestions, setIsGeneratingInitialSuggestions] =
     useState(false);

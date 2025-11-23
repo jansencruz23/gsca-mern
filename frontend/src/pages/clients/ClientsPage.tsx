@@ -16,8 +16,6 @@ import {
   ArrowLeft,
   Calendar,
   User,
-  BarChart3,
-  Loader2,
   Edit,
   Camera,
   AlertCircle,

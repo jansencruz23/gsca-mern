@@ -2,7 +2,6 @@ import React, { useState, useEffect } from "react";
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from "../../components/ui/card";
@@ -21,7 +20,7 @@ import {
 import { questionsAPI } from "../../services/api";
 import { Alert, AlertDescription } from "../../components/ui/alert";
 import type { Question } from "../../types/question";
-import { MessageSquare, Plus, Trash2, Edit, Loader2 } from "lucide-react";
+import { MessageSquare, Plus, Trash2, Edit } from "lucide-react";
 
 export const QuestionsPage: React.FC = () => {
   const [questions, setQuestions] = useState<Question[]>([]);
